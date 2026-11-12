@@ -1,0 +1,4 @@
+__pycache__/
+.shellcache/
+states/
+leech.conf

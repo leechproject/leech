@@ -1,0 +1,146 @@
+button, label, box, eventbox {
+    background-image: none;
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    text-shadow: none;
+    color: #ffffff;
+    font-size: 13px;
+}
+
+#bar, #bar-root {
+    background-color: transparent;
+}
+
+#main-inner-sub {
+    background-color: #090909;
+    border-radius: 10px;
+    margin: 5px;
+    padding: 5px 0px;
+}
+
+#box-avatar, #box-workspaces, #box-tray, #box-layout, #box-battery, #box-clock, #box-power {
+    background-color: #000000;
+    border-radius: 10px;
+    margin: 0px 5px 8px 5px;
+    min-width: 40px;
+}
+
+#box-avatar, #box-layout, #box-battery, #box-power { min-height: 40px; }
+#box-clock { min-height: 55px; }
+
+#box-power { margin-bottom: 0px; }
+
+#launcher-btn { padding: 0px; min-width: 0px; min-height: 0px; }
+
+#box-workspaces { padding: 8px 0px; }
+#box-workspaces button { padding: 2px 0px; min-width: 24px; }
+#ws-active   { color: #ffffff; font-weight: bold; }
+#ws-occupied { color: #888888; }
+#ws-empty    { color: #333333; }
+#ws-plate { background-color: #ffffff; border-radius: 5px; }
+#box-workspaces #ws-active.on-plate { color: #000000; }
+
+#box-battery label, #box-power label, #box-avatar label { font-size: 15px; }
+#tray-toggle { color: #ffffff; font-size: 15px; }
+#box-tray button { padding: 0px; min-width: 0px; min-height: 0px; }
+#box-clock label { font-weight: bold; font-size: 16px; }
+#box-layout label, #taskbar-layout label { color: #ffffff; font-weight: bold; font-size: 14px; }
+
+#box-battery button, #box-power button { padding: 0px; min-width: 0px; min-height: 0px; }
+
+#bar-root.horizontal #main-inner-sub { padding: 0px 5px; }
+#bar-root.horizontal #box-avatar, #bar-root.horizontal #box-workspaces, #bar-root.horizontal #box-tray,
+#bar-root.horizontal #box-layout, #bar-root.horizontal #box-battery, #bar-root.horizontal #box-clock,
+#bar-root.horizontal #box-power {
+    margin: 5px 8px 5px 0px;
+    min-width: 0px;
+    min-height: 40px;
+}
+#bar-root.horizontal #box-avatar, #bar-root.horizontal #box-layout, #bar-root.horizontal #box-battery,
+#bar-root.horizontal #box-power { min-width: 40px; }
+#bar-root.horizontal #box-clock { min-width: 55px; min-height: 40px; padding: 0px 8px; }
+#bar-root.horizontal #box-power, #bar-root.horizontal #box-workspaces { margin-right: 0px; }
+#bar-root.split #main-inner-sub { background-color: transparent; }
+#bar-root.horizontal #box-workspaces { padding: 0px 8px; }
+#bar-root.horizontal #box-workspaces button { padding: 0px 2px; min-width: 0px; min-height: 24px; }
+
+#notch-area    { font-weight: bold; font-size: 16px; }
+#notch-percent { font-size: 18px; font-weight: bold; }
+#notch-bat-icon { font-size: 20px; }
+#notch-source  { font-size: 14px; }
+#notch-title   { font-size: 14px; font-weight: bold; }
+#notch-artist  { font-size: 12px; color: #d0d0d0; }
+#notch-time    { font-size: 13px; }
+
+.notch-btn { background-color: #090909; border-radius: 10px; padding: 0px; outline-style: none; }
+.notch-btn label { color: #ffffff; }
+
+.notch-btn.active { background-color: #ffffff; }
+.notch-btn.active label { color: #000000; }
+
+.notch-btn.sel { background-color: #d1d1d1; }
+.notch-btn.sel label { color: #000000; }
+
+.notch-btn.invert.sel { background-color: #ffffff; }
+.notch-btn.invert.sel label { color: #000000; }
+
+.notch-btn-icon { font-size: 24px; }
+.notch-btn.invert .notch-btn-icon { font-size: 28px; }
+
+.notch-play, .notch-play:hover, .notch-play:active {
+    background-color: transparent;
+    padding: 0px;
+    min-width: 44px;
+    min-height: 44px;
+}
+.notch-play label, .notch-play:hover label, .notch-play:active label {
+    color: #ffffff;
+    font-size: 24px;
+}
+
+.dock-btn { padding: 0px; min-width: 0px; min-height: 0px; }
+#dock-separator { background-color: #333333; }
+
+.cc-btn { background-color: #090909; border-radius: 10px; padding: 0px; }
+.cc-btn label { color: #ffffff; }
+.cc-btn:hover, .cc-btn.kfocus { background-color: #d1d1d1; }
+.cc-btn:hover label, .cc-btn.kfocus label { color: #000000; }
+.cc-btn.on { background-color: #ffffff; }
+.cc-btn.on:hover, .cc-btn.on.kfocus { background-color: #d1d1d1; }
+.cc-btn.on label { color: #000000; }
+
+.cc-icon  { font-size: 22px; }
+
+.cc-bean { color: #ffffff; }
+.cc-btn:hover .cc-bean, .cc-btn.kfocus .cc-bean { color: #000000; }
+.cc-btn.on .cc-bean { color: #000000; }
+
+#cc-calendar { font-size: 13px; }
+.cc-sep { background-color: #121212; }
+.cc-label { font-size: 12px; }
+
+.cc-card { background-color: #090909; border-radius: 10px; }
+.cc-card.kfocus { background-color: #1a1a1a; }
+.cc-card label { color: #ffffff; }
+#cc-card-title { font-weight: bold; font-size: 14px; }
+#cc-card-body  { font-size: 12px; }
+#cc-empty { color: #555555; }
+#cc-time { color: #ffffff; font-size: 30px; }
+#cc-date { color: #ffffff; font-size: 13px; }
+
+scrolledwindow, viewport { background-color: transparent; }
+
+#launcher-area { font-size: 12px; }
+
+#taskbar, #taskbar-root { background-color: transparent; }
+#taskbar-tray, #taskbar-clock { background-color: #090909; border-radius: 10px; }
+#taskbar-layout { background-color: #090909; border-radius: 10px; }
+#taskbar-tray button { padding: 0px; min-width: 0px; min-height: 0px; }
+#taskbar-clock { padding: 0px 10px; min-width: 0px; min-height: 0px; border: none; box-shadow: none; }
+#taskbar-clock label { color: #ffffff; font-weight: bold; font-size: 16px; }
+#taskbar-launcher { padding: 0px; min-width: 0px; min-height: 0px; }
+#taskbar-clock.on { background-color: #ffffff; }
+#taskbar-clock.on label { color: #000000; }
+#taskbar-tray-window { background-color: transparent; }
+#taskbar-tray-window button { padding: 0px; min-width: 0px; min-height: 0px; border: none; box-shadow: none; }
