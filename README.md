@@ -25,6 +25,27 @@ for now, this dotfiles have only Hyprland, Niri and MangoWM support.
 * bluez
 * glib2
 
+### CTL USAGE
+```
+# leectl = <projectdir>/main/ctl.py
+# available values
+leectl toggle:
+cc
+cc-full
+launcher
+wallpaper
+battery
+power
+player
+
+leectl apps [query]
+leectl pin | unpin [apps]
+leectl pins 
+leectl volume up | down
+leectl brightness up | down
+leectl stats
+leectl reload
+```
 ### install
 ```sh
 git clone https://github.com/leechproject/leech ~/.config/leech
