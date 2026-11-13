@@ -38,7 +38,8 @@ button, label, box, eventbox {
 #ws-active   { color: #ffffff; font-weight: bold; }
 #ws-occupied { color: #888888; }
 #ws-empty    { color: #333333; }
-#ws-plate { background-color: #ffffff; border-radius: 5px; }
+/* margin — зазор плашки активного воркспейса до краёв бара, padding — насколько плашка уже кнопки */
+#ws-plate { background-color: #ffffff; border-radius: 5px; margin: 5px; padding: 3px; }
 #box-workspaces #ws-active.on-plate { color: #000000; }
 
 #box-battery label, #box-power label, #box-avatar label { font-size: 15px; }
@@ -82,6 +83,13 @@ button, label, box, eventbox {
 .notch-btn.sel { background-color: #d1d1d1; }
 .notch-btn.sel label { color: #000000; }
 
+/* Power profiles follow the CC buttons: a profile that is not active lightens like the focused
+   calendar strip, the active one greys. The power menu (.invert) keeps its own colours. */
+.notch-btn.profile.sel { background-color: #1b1b1b; }
+.notch-btn.profile.sel label { color: #ffffff; }
+.notch-btn.profile.active.sel { background-color: #d1d1d1; }
+.notch-btn.profile.active.sel label { color: #000000; }
+
 .notch-btn.invert.sel { background-color: #ffffff; }
 .notch-btn.invert.sel label { color: #000000; }
 
@@ -104,8 +112,8 @@ button, label, box, eventbox {
 
 .cc-btn { background-color: #090909; border-radius: 10px; padding: 0px; }
 .cc-btn label { color: #ffffff; }
-.cc-btn:hover, .cc-btn.kfocus { background-color: #d1d1d1; }
-.cc-btn:hover label, .cc-btn.kfocus label { color: #000000; }
+/* Hover or arrow focus: a switched-off button lightens like the focused calendar strip, a switched-on one greys. */
+.cc-btn:hover, .cc-btn.kfocus { background-color: #1b1b1b; }
 .cc-btn.on { background-color: #ffffff; }
 .cc-btn.on:hover, .cc-btn.on.kfocus { background-color: #d1d1d1; }
 .cc-btn.on label { color: #000000; }
@@ -113,7 +121,6 @@ button, label, box, eventbox {
 .cc-icon  { font-size: 22px; }
 
 .cc-bean { color: #ffffff; }
-.cc-btn:hover .cc-bean, .cc-btn.kfocus .cc-bean { color: #000000; }
 .cc-btn.on .cc-bean { color: #000000; }
 
 #cc-calendar { font-size: 13px; }
@@ -137,10 +144,152 @@ scrolledwindow, viewport { background-color: transparent; }
 #taskbar-tray, #taskbar-clock { background-color: #090909; border-radius: 10px; }
 #taskbar-layout { background-color: #090909; border-radius: 10px; }
 #taskbar-tray button { padding: 0px; min-width: 0px; min-height: 0px; }
+#taskbar-profiles { background-color: #090909; border-radius: 10px; padding: 0px; min-width: 0px; min-height: 0px;
+                    border: none; box-shadow: none; }
+#taskbar-profiles label { color: #ffffff; font-size: 15px; }
+#taskbar-profiles.on { background-color: #ffffff; }
+#taskbar-profiles.on label { color: #000000; }
+#profiles-popup { background-color: transparent; }
 #taskbar-clock { padding: 0px 10px; min-width: 0px; min-height: 0px; border: none; box-shadow: none; }
 #taskbar-clock label { color: #ffffff; font-weight: bold; font-size: 16px; }
 #taskbar-launcher { padding: 0px; min-width: 0px; min-height: 0px; }
-#taskbar-clock.on { background-color: #ffffff; }
+#taskbar-clock.on, #taskbar-tray.on { background-color: #ffffff; }
+#taskbar-tray.on #tray-toggle { color: #000000; }
 #taskbar-clock.on label { color: #000000; }
 #taskbar-tray-window { background-color: transparent; }
 #taskbar-tray-window button { padding: 0px; min-width: 0px; min-height: 0px; border: none; box-shadow: none; }
+
+/* ===== Отрисовка cairo =====
+   Цвета, скругления, размеры шрифтов и отступы того, что leech рисует сам. Свойства: background-color,
+   color, border-radius, font-size, padding (отступ внутри, от края до содержимого) и margin (отступ между
+   соседями или наружу). У правила с классом (.active, .hover, ...) недостающие свойства берутся из правила
+   без класса. Удалённое правило возвращается к значению по умолчанию (main/modules/common/theme.py).
+   Размеры, которые задаются в leech.conf, остаются там. */
+
+/* Общее: чёрные поверхности (рамка, челка, КЦ, лаунчер, док, пикер, панель задач, всплывающие меню),
+   скругление рамки; margin у #leech-separate — отступ от рамки у стиля sep (док, лаунчер, пикер, КЦ);
+   обводки параметров outline: background-color — внешний слой, color — внутренний */
+#leech-surface { background-color: #000000; border-radius: 10px; }
+#leech-separate { margin: 5px; }
+#leech-frame { border-radius: 10px; }
+#leech-outline { background-color: #000000; color: #ffffff; }
+
+/* Челка: плашка с текстом в покое; меню (padding — от края челки до кнопок, margin — между кнопками);
+   плеер (padding — от края челки, margin — между обложкой и полосой прогресса); заглушка обложки;
+   полоса прогресса (color — пройденная часть, margin — от полосы до нижнего края) */
+#notch-idle-plate { background-color: #111111; border-radius: 10px; color: #ffffff; }
+#notch-menu { padding: 9px; margin: 6px; }
+#notch-player { padding: 5px; margin: 5px; }
+#notch-cover { background-color: #090909; border-radius: 8px; }
+#notch-timeline { background-color: #242424; color: #ffffff; margin: 5px; }
+
+/* КЦ: padding — отступ блоков от края КЦ и между кнопками */
+#cc-body { padding: 6px; }
+
+/* КЦ: пуш-уведомление (padding вокруг карточки) и сама карточка (padding от её края до содержимого) */
+#cc-push { padding: 5px; }
+#cc-push-card { padding: 6px; }
+
+/* КЦ: календарь (padding — верх и бока; .expanded — раскрыт, .focus — фокус стрелками;
+   .other — дни соседних месяцев, .today — сегодня) */
+#cc-calendar-plate { background-color: #090909; border-radius: 10px; color: #ffffff; padding: 8px 7px; }
+#cc-calendar-plate.expanded { background-color: #121212; }
+#cc-calendar-plate.focus { background-color: #1b1b1b; }
+#cc-calendar-plate.expanded.focus { background-color: #242424; }
+#cc-calendar-weekday { color: #8a8a8a; font-size: 11px; }
+#cc-calendar-day { color: #ffffff; }
+#cc-calendar-day.other { color: #454545; }
+#cc-calendar-day.today { background-color: #ffffff; border-radius: 8px; color: #000000; }
+
+/* КЦ: слайдеры (color — заполненная часть, .muted — без звука, padding — от края до глифа);
+   глиф на слайдере (font-size — его размер, .filled — поверх заполненной части) */
+#cc-slider { background-color: #090909; border-radius: 10px; color: #ffffff; padding: 8px; }
+#cc-slider.muted { color: #666666; }
+#cc-slider-glyph { color: #ffffff; font-size: 22px; }
+#cc-slider-glyph.filled { color: #000000; }
+
+/* КЦ: ручка для перетаскивания (padding — от края КЦ) */
+#cc-handle { background-color: #ffffff; padding: 5px; }
+
+/* КЦ: крестик антиспама */
+#cc-flood { color: #ffffff; }
+
+/* Скриншот: затемнение экрана и рамка выделения */
+#screenshot-overlay { background-color: rgba(0, 0, 0, 0.25); color: rgba(255, 255, 255, 0.9); }
+
+/* КЦ: рекорд-бар (.recording — идёт запись; padding — от края рекорд-бара до кнопок, font-size — таймер);
+   сообщение «Can't change…»; кнопки записи и паузы (font-size — глиф); трей (padding — от края трея
+   до пунктов и между ними, font-size — его глиф); пункты трея (.on — включён, .hover — наведение/фокус) */
+#cc-record { background-color: #000000; border-radius: 10px; color: #ffffff; padding: 6px; font-size: 14px; }
+#cc-record-message { font-size: 11px; }
+#cc-record.recording { background-color: #ffffff; color: #000000; }
+#cc-record-button { background-color: #090909; border-radius: 8px; color: #ffffff; font-size: 20px; }
+#cc-record-button.recording { background-color: #d1d1d1; color: #000000; }
+#cc-record-button.hover { background-color: #1b1b1b; color: #ffffff; }
+#cc-record-tray { background-color: #090909; border-radius: 8px; padding: 5px; font-size: 14px; }
+#cc-record-item { background-color: #090909; border-radius: 6px; color: #ffffff; font-size: 16px; }
+#cc-record-item.on { background-color: #ffffff; color: #000000; }
+#cc-record-item.hover { background-color: #1b1b1b; color: #ffffff; }
+#cc-record-item.on.hover { background-color: #d1d1d1; color: #000000; }
+
+/* КЦ: меню Wi-Fi и Bluetooth (font-size: заголовок и кнопки шапки, текст строк, подписи, значки;
+   строки и кнопки шапки: .on — подключено/включено, .hover — наведение/фокус; menu — контекстное меню строки) */
+#cc-net { background-color: #090909; border-radius: 10px; color: #ffffff; font-size: 13px; }
+#cc-net-empty { font-size: 12px; }
+#cc-net-glyph { font-size: 14px; }
+#cc-net-lock { font-size: 10px; }
+#cc-net-item { background-color: #111111; border-radius: 8px; color: #ffffff; font-size: 13px; }
+#cc-net-item.hover { background-color: #2c2c2c; }
+#cc-net-item.on { background-color: #ffffff; color: #000000; }
+#cc-net-item.on.hover { background-color: #d1d1d1; }
+#cc-net-dim { color: #8a8a8a; font-size: 11px; }
+#cc-net-dim.on { color: #4d4d4d; }
+#cc-net-menu { background-color: #000000; border-radius: 8px; font-size: 13px; }
+
+/* Лаунчер: строки (.active — выбрана; padding — слева от значка и справа от текста, margin — между
+   значком и текстом), поиск (padding — от края лаунчера, margin — до списка), полоска «скрытые приложения»,
+   пустой список, контекстное меню (padding пунктов — вокруг значка; пункты общие с меню Wi-Fi и Bluetooth) */
+#launcher-row { background-color: #090909; border-radius: 10px; color: #ffffff; padding: 0px 2px 0px 4px; margin: 5px; }
+#launcher-row.active { background-color: #111111; }
+#launcher-search { background-color: #121212; border-radius: 10px; color: #ffffff; padding: 5px; margin: 6px; }
+#launcher-header { background-color: #090909; color: #111111; font-size: 14px; }
+#launcher-header.hover { background-color: #111111; color: #1c1c1c; }
+#launcher-empty { color: #666666; }
+#launcher-menu { background-color: #000000; border-radius: 10px; }
+#launcher-menu-item { background-color: #111111; border-radius: 8px; color: #ffffff; padding: 5px; }
+#launcher-menu-item.active { background-color: #d1d1d1; color: #000000; }
+
+/* Лаунчер Undercover: отступ от края экрана и панели задач; нижняя панель (padding — до аватара и кнопок,
+   margin — между аватаром и именем); аватар-заглушка, кнопки шестерёнки и питания, меню питания */
+#start-launcher { margin: 10px; }
+#start-footer { background-color: #090909; border-radius: 10px; color: #ffffff; padding: 7px; margin: 7px; }
+#start-avatar { background-color: #111111; color: #ffffff; font-size: 15px; }
+#start-button { background-color: transparent; border-radius: 8px; color: #ffffff; font-size: 15px; }
+#start-button.hover { background-color: #111111; }
+#start-menu { background-color: #000000; border-radius: 10px; padding: 6px; }
+#start-menu-item { background-color: #090909; border-radius: 8px; color: #ffffff; font-size: 14px; }
+#start-menu-item.active { background-color: #ffffff; color: #000000; }
+
+/* Пикер обоев: padding — от края пикера, margin — между миниатюрами; рамка миниатюры (padding — толщина рамки,
+   .current — текущие обои, .hover — выбор), заглушка, пустой список */
+#picker { padding: 8px; margin: 8px; }
+#picker-cell { background-color: #090909; border-radius: 15px; padding: 3px; }
+#picker-cell.current { background-color: #666666; }
+#picker-cell.hover { background-color: #ffffff; }
+#picker-placeholder { background-color: #0d0d0d; }
+#picker-empty { color: #666666; font-size: 16px; }
+
+/* Док и панель задач: точки запущенных окон (padding — от значка, margin — между точками) */
+#dock-dot { background-color: #ffffff; padding: 5px; margin: 2px; }
+
+/* Панель задач Undercover: отступы плашек; окно трея (padding — вокруг и между значками, margin — над
+   панелью задач); всплывающие окна над панелью задач — отступ от рамки или края экрана */
+#taskbar-plates { padding: 5px; }
+#taskbar-tray-grid { padding: 6px; margin: 7px; }
+#taskbar-popup { margin: 5px; }
+
+/* Трей в баре: padding — по краям развёрнутого трея, margin — между значками (масштабируется вместе с баром) */
+#systray-items { padding: 6px; margin: 6px; }
+
+/* Обои: заливка, пока картинка не загружена */
+#wallpaper-fill { background-color: #000000; }

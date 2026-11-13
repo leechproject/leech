@@ -7,10 +7,11 @@ from gi.repository import GtkLayerShell, Gtk
 
 
 from modules import config
+from modules.common import theme
 from modules.animations import anim
 from modules.animations.anim import Tween
 from modules.animations.reveal import install_clip
-from modules.common.shapes import (OUTLINE_LAYERS, notch_edge_path, notch_path, rounded_rect, snap_centered,
+from modules.common.shapes import (notch_edge_path, notch_path, rounded_rect, snap_centered,
                                    stroke_inside)
 from modules.common.surface import ShapedWindow, no_input, init_layer
 from modules.common.edge import AttachedEdge
@@ -289,7 +290,7 @@ class Dock(ShapedWindow):
                 cr.set_source_rgba(*config.COLOR)
                 cr.fill()
                 if config.DOCK_OUTLINE:
-                    stroke_inside(cr, plate, plate, OUTLINE_LAYERS, config.OUTLINE_THICKNESS)
+                    stroke_inside(cr, plate, plate, theme.outline_layers(), config.OUTLINE_THICKNESS)
                 cr.restore()
                 return False
             cr.save()
@@ -302,7 +303,7 @@ class Dock(ShapedWindow):
             if config.DOCK_OUTLINE:
                 stroke_inside(cr, lambda c: notch_path(c, x0, x1, EDGE.frame, body_h, config.RADIUS),
                               lambda c: notch_edge_path(c, x0, x1, EDGE.frame, body_h, config.RADIUS),
-                              OUTLINE_LAYERS, config.OUTLINE_THICKNESS)
+                              theme.outline_layers(), config.OUTLINE_THICKNESS)
             cr.restore()
             cr.restore()
         return False

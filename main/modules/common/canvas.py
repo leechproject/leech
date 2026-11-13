@@ -9,7 +9,8 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import GtkLayerShell, Gtk, Gdk
 
 from modules import config
-from modules.common.shapes import OUTLINE_LAYERS, draw_frame, frame_shape, rounded_rect, stroke_inside
+from modules.common import theme
+from modules.common.shapes import draw_frame, frame_shape, rounded_rect, stroke_inside
 from modules.config.geometry import bar_rect, snap_inset
 from modules.common.surface import ShapedWindow, no_input, init_layer
 
@@ -71,7 +72,7 @@ class Canvas(ShapedWindow):
             left, top, right, bottom = insets
             stroke_inside(cr, lambda c: frame_shape(c, w, h, *insets, config.FRAME_RADIUS),
                           lambda c: rounded_rect(c, left, top, w - left - right, h - top - bottom, config.FRAME_RADIUS),
-                          OUTLINE_LAYERS, config.OUTLINE_THICKNESS)
+                          theme.outline_layers(), config.OUTLINE_THICKNESS)
         if config.BAR_DETACHED and not config.BAR_SPLIT:
             x, y, bw, bh = bar_rect(w, h, config.BAR_POSITION, config.BAR_SIZE, config.BAR_MARGINS)
             cr.set_source_rgba(*config.COLOR)
@@ -79,7 +80,7 @@ class Canvas(ShapedWindow):
             plate(cr)
             cr.fill()
             if config.FRAME_OUTLINE:
-                stroke_inside(cr, plate, plate, OUTLINE_LAYERS, config.OUTLINE_THICKNESS)
+                stroke_inside(cr, plate, plate, theme.outline_layers(), config.OUTLINE_THICKNESS)
         return False
 
     def catch(self, owner, callback):

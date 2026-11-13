@@ -12,7 +12,7 @@ from modules import config
 from modules.animations import anim
 from modules.animations.anim import Tween
 from modules.cc import net_layout as nl
-from modules.common import binds, glyph
+from modules.common import binds, glyph, theme
 from modules.common.shapes import rounded_rect
 from modules.parsing import bluetooth, network, wifi
 
@@ -35,12 +35,6 @@ BT_ICONS = {
     "phone": "", "computer": "", "video-display": "",
 }
 
-PLATE = (9 / 255, 9 / 255, 9 / 255)
-ITEM = (17 / 255, 17 / 255, 17 / 255)
-ITEM_HOVER = (44 / 255, 44 / 255, 44 / 255)
-ACTIVE = (1.0, 1.0, 1.0)
-ACTIVE_HOVER = (209 / 255, 209 / 255, 209 / 255)
-DIM = (0.54, 0.54, 0.54)
 TITLES = {"wifi": "Wi-Fi", "bluetooth": "Bluetooth"}
 WIFI_POLL_S = 4
 FAIL_MS = 2500
@@ -49,6 +43,11 @@ SPIN_TURN_S = 0.9
 GLYPH_NUDGE = {ICON_SEND: (-1, 1)}
 NO_TEXT_MODS = (Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.MOD1_MASK | Gdk.ModifierType.SUPER_MASK
                 | Gdk.ModifierType.META_MASK)
+
+
+def _item(on, hover):
+    """The style.css rule of a row or header button: on = connected / switched on."""
+    return "#cc-net-item" + (".on" if on else "") + (".hover" if hover else "")
 
 
 @dataclass
@@ -564,9 +563,9 @@ class NetPanel(Gtk.DrawingArea):
     def key_press(self, event):
         if self.kind is None:
             return False
-        key = event.keyval
         if self._password is not None:
             return self._password_key(event)
+        key = binds.nav_key(event)
         if key == Gdk.KEY_Escape:
             if self._menu_row is not None:
                 self._close_menu()
@@ -697,8 +696,8 @@ class NetPanel(Gtk.DrawingArea):
         w = widget.get_allocated_width()
         y0 = self._plate_y()
         cr.save()
-        rounded_rect(cr, 0, y0, w, h, min(nl.RADIUS, h / 2))
-        cr.set_source_rgb(*PLATE)
+        rounded_rect(cr, 0, y0, w, h, min(theme.radius("#cc-net"), h / 2))
+        cr.set_source_rgba(*theme.bg("#cc-net"))
         cr.fill_preserve()
         cr.clip()
         cr.translate(0, y0)
@@ -709,30 +708,29 @@ class NetPanel(Gtk.DrawingArea):
         return False
 
     def _draw_header(self, cr, w):
-        title = self._layout(TITLES.get(self.kind, ""), 13)
+        title = self._layout(TITLES.get(self.kind, ""), theme.font("#cc-net"))
         _, th = title.get_pixel_size()
-        cr.set_source_rgb(1, 1, 1)
+        cr.set_source_rgba(*theme.fg("#cc-net"))
         cr.move_to(nl.PAD + 4, nl.PAD + (nl.HEAD_H - th) / 2)
         PangoCairo.show_layout(cr, title)
         for index, ((bx, size), (icon, on, _)) in enumerate(zip(nl.header_buttons(w, len(self._header)),
                                                                 self._header)):
             hover = index == self._head_hover or index == self._head_sel
-            color = ACTIVE_HOVER if on and hover else ACTIVE if on else ITEM_HOVER if hover else ITEM
-            cr.set_source_rgb(*color)
-            rounded_rect(cr, bx, nl.PAD, size, nl.HEAD_H, nl.ITEM_RADIUS)
+            item = _item(on, hover)
+            cr.set_source_rgba(*theme.bg(item))
+            rounded_rect(cr, bx, nl.PAD, size, nl.HEAD_H, theme.radius(item))
             cr.fill()
-            shade = 0.0 if on else 1.0
-            cr.set_source_rgb(shade, shade, shade)
+            cr.set_source_rgba(*theme.fg(item))
             dx, dy = GLYPH_NUDGE.get(icon, (0, 0))
             cx, cy = bx + size / 2 + dx, nl.PAD + nl.HEAD_H / 2 + dy
             if icon == ICON_RESCAN and self._spin_tick:
                 cr.save()
                 cr.translate(cx, cy)
                 cr.rotate(self._spin * 2 * math.pi)
-                glyph.show_centered(cr, self._layout(icon, 13), 0, 0)
+                glyph.show_centered(cr, self._layout(icon, theme.font("#cc-net")), 0, 0)
                 cr.restore()
             else:
-                glyph.show_centered(cr, self._layout(icon, 13), cx, cy)
+                glyph.show_centered(cr, self._layout(icon, theme.font("#cc-net")), cx, cy)
 
     def _draw_list(self, cr, w):
         top = nl.list_top(bool(self._header))
@@ -741,9 +739,9 @@ class NetPanel(Gtk.DrawingArea):
         cr.rectangle(nl.PAD, top, w - 2 * nl.PAD, view)
         cr.clip()
         if not self._rows:
-            text = self._layout(self._message, 12)
+            text = self._layout(self._message, theme.font("#cc-net-empty"))
             tw, th = text.get_pixel_size()
-            cr.set_source_rgb(*DIM)
+            cr.set_source_rgba(*theme.fg("#cc-net-dim"))
             cr.move_to((w - tw) / 2, top + (nl.ITEM_H - th) / 2)
             PangoCairo.show_layout(cr, text)
         items = self._menu_items()
@@ -758,67 +756,64 @@ class NetPanel(Gtk.DrawingArea):
         cr.restore()
 
     def _draw_row(self, cr, row, index, x, y, width):
-        hover = index == self._selected
-        if row.active:
-            color = ACTIVE_HOVER if hover else ACTIVE
-        else:
-            color = ITEM_HOVER if hover else ITEM
-        cr.set_source_rgb(*color)
-        rounded_rect(cr, x, y, width, nl.ITEM_H, nl.ITEM_RADIUS)
+        item = _item(row.active, index == self._selected)
+        cr.set_source_rgba(*theme.bg(item))
+        rounded_rect(cr, x, y, width, nl.ITEM_H, theme.radius(item))
         cr.fill()
-        ink = 0.0 if row.active else 1.0
+        ink = theme.fg(item)
+        dim = theme.fg("#cc-net-dim")
         cy = y + nl.ITEM_H / 2
-        cr.set_source_rgb(ink, ink, ink)
-        glyph.show_centered(cr, self._layout(row.glyph, 14), x + 18, cy)
+        cr.set_source_rgba(*ink)
+        glyph.show_centered(cr, self._layout(row.glyph, theme.font("#cc-net-glyph")), x + 18, cy)
 
         typing = self._password is not None and self._password[0] == row.key
         if typing:
             detail = "Enter ↵"
         else:
             detail = self._failed.get(row.key) or self._busy.get(row.key) or row.detail
-        detail_layout = self._layout(detail, 11) if detail else None
+        detail_layout = self._layout(detail, theme.font("#cc-net-dim")) if detail else None
         detail_w = detail_layout.get_pixel_size()[0] if detail_layout else 0
         lock_w = 14 if row.lock and not typing else 0
         right = x + width - 10
         if detail_layout is not None:
             dh = detail_layout.get_pixel_size()[1]
-            cr.set_source_rgb(*((0.3, 0.3, 0.3) if row.active else DIM))
+            cr.set_source_rgba(*theme.fg("#cc-net-dim.on" if row.active else "#cc-net-dim"))
             cr.move_to(right - detail_w, cy - dh / 2)
             PangoCairo.show_layout(cr, detail_layout)
         if lock_w:
-            cr.set_source_rgb(ink, ink, ink)
-            glyph.show_centered(cr, self._layout(ICON_LOCK, 10), right - detail_w - 4 - lock_w / 2, cy)
+            cr.set_source_rgba(*ink)
+            glyph.show_centered(cr, self._layout(ICON_LOCK, theme.font("#cc-net-lock")), right - detail_w - 4 - lock_w / 2, cy)
 
         text_x = x + 36
         room = right - detail_w - (lock_w + 8 if lock_w else 0) - 8 - text_x
         if typing:
             secret = "•" * len(self._password[1])
-            title = self._layout(secret + "|" if secret else "Password", 13, room)
-            cr.set_source_rgb(*((1, 1, 1) if secret else DIM))
+            title = self._layout(secret + "|" if secret else "Password", theme.font("#cc-net-item"), room)
+            cr.set_source_rgba(*(ink if secret else dim))
         else:
-            title = self._layout(row.title, 13, room)
-            cr.set_source_rgb(ink, ink, ink)
+            title = self._layout(row.title, theme.font("#cc-net-item"), room)
+            cr.set_source_rgba(*ink)
         _, th = title.get_pixel_size()
         cr.move_to(text_x, cy - th / 2)
         PangoCairo.show_layout(cr, title)
 
     def _draw_menu(self, cr, row, x, y, width):
         height = nl.menu_height(len(row.menu))
-        cr.set_source_rgb(0, 0, 0)
-        rounded_rect(cr, x, y, width, height, nl.ITEM_RADIUS)
+        cr.set_source_rgba(*theme.bg("#cc-net-menu"))
+        rounded_rect(cr, x, y, width, height, theme.radius("#cc-net-menu"))
         cr.fill()
         item_w = width - 2 * nl.MENU_EDGE
         for k, (icon, label, _) in enumerate(row.menu):
             iy = y + nl.MENU_EDGE + k * (nl.MENU_ITEM_H + nl.MENU_GAP)
             active = k == self._menu_sel
-            cr.set_source_rgb(*(config.LAUNCHER_COLOR_MENU_ITEM_ACTIVE if active else config.LAUNCHER_COLOR_MENU_ITEM))
-            rounded_rect(cr, x + nl.MENU_EDGE, iy, item_w, nl.MENU_ITEM_H, nl.ITEM_RADIUS)
+            item = "#launcher-menu-item.active" if active else "#launcher-menu-item"
+            cr.set_source_rgba(*theme.bg(item))
+            rounded_rect(cr, x + nl.MENU_EDGE, iy, item_w, nl.MENU_ITEM_H, theme.radius(item))
             cr.fill()
-            shade = 0.0 if active else 1.0
-            cr.set_source_rgb(shade, shade, shade)
+            cr.set_source_rgba(*theme.fg(item))
             icon_cx = x + nl.MENU_EDGE + nl.MENU_PAD + nl.MENU_ICON / 2
             glyph.show_centered(cr, self._layout(icon, nl.MENU_ICON - 3), icon_cx, iy + nl.MENU_ITEM_H / 2)
-            text = self._layout(label, 13)
+            text = self._layout(label, theme.font("#cc-net-menu"))
             _, text_h = text.get_pixel_size()
             cr.move_to(x + nl.MENU_EDGE + nl.MENU_PAD + nl.MENU_ICON + 6, iy + (nl.MENU_ITEM_H - text_h) / 2)
             PangoCairo.show_layout(cr, text)

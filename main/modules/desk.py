@@ -30,8 +30,20 @@ class Desk:
                 self.windows.append(self.notch)
             if config.UNDERCOVER:
                 from modules.bar.taskbar import Taskbar
+                notch = self.notch
+                popup = None
+                if config.PROFILES_BY_TASKBAR:
+                    from modules.notch.profiles_popup import ProfilesPopup
+                    popup = ProfilesPopup(canvas)
+                    self.windows.append(popup)
+                    if notch is not None:
+                        notch.battery_redirect = popup.toggle
+                on_profiles = popup.toggle if popup else ((lambda: notch.toggle("battery")) if notch else None)
                 self.taskbar = Taskbar(self.view, canvas, on_launcher=shell.toggle_launcher,
-                                       on_clock=lambda: shell.toggle_cc(2, self.target))
+                                       on_clock=lambda: shell.toggle_cc(2, self.target),
+                                       on_profiles=on_profiles)
+                if popup is not None:
+                    popup.on_state = self.taskbar.set_profiles_open
                 self.windows.append(self.taskbar)
             if config.DOCK_ENABLED and not config.UNDERCOVER:
                 from modules.dock.dock import Dock

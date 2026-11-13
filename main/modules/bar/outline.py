@@ -4,7 +4,8 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 
 from modules import config
-from modules.common.shapes import OUTLINE_LAYERS as LAYERS, draw_outline
+from modules.common import theme
+from modules.common.shapes import draw_outline
 
 
 def _draw(widget, cr):
@@ -16,7 +17,7 @@ def _draw(widget, cr):
     h = widget.get_allocated_height() - margin.top - margin.bottom
     cr.save()
     cr.translate(margin.left, margin.top)
-    draw_outline(cr, w, h, min(radius, w / 2, h / 2), LAYERS, config.OUTLINE_THICKNESS)
+    draw_outline(cr, w, h, min(radius, w / 2, h / 2), theme.outline_layers(), config.OUTLINE_THICKNESS)
     cr.restore()
     return False
 

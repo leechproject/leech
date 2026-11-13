@@ -13,6 +13,8 @@ from pathlib import Path
 from modules.common.surface import ShapedWindow, after_commit, no_input, init_layer, on_monitor
 
 from modules import config
+from modules.common import binds
+from modules.common import theme
 from modules.common import layerkeys
 from modules.wallpapers import picker_layout as pl
 from modules.wallpapers import wallpaper
@@ -218,38 +220,38 @@ class PickerWindow(ShapedWindow):
         if count == 0:
             text = self.create_pango_layout(self._empty_text)
             desc = self._area.get_pango_context().get_font_description().copy()
-            desc.set_size(12 * Pango.SCALE)
+            desc.set_absolute_size(theme.font("#picker-empty") * Pango.SCALE)
             text.set_font_description(desc)
             width, _ = text.get_pixel_size()
-            cr.set_source_rgb(0.4, 0.4, 0.4)
+            cr.set_source_rgba(*theme.fg("#picker-empty"))
             cr.move_to(layout.x0 + ((layout.x1 - layout.x0) - width) / 2, layout.grid_y + 24)
             PangoCairo.show_layout(cr, text)
             return
 
-        border, radius = config.PICKER_BORDER, config.PICKER_BORDER_RADIUS
+        border, radius = config.PICKER_BORDER, theme.radius("#picker-cell")
         first = self._top_row * layout.cols
         last = min(count, (self._top_row + layout.rows) * layout.cols)
         for index in range(first, last):
             x, y, w, h = pl.cell_rect(layout, index, self._top_row)
             if index == self._selected:
-                color = config.PICKER_COLOR_HOVER
+                cell = "#picker-cell.hover"
             elif index == self._current:
-                color = config.PICKER_COLOR_CURRENT
+                cell = "#picker-cell.current"
             else:
-                color = config.PICKER_COLOR_IDLE
-            cr.set_source_rgb(*color)
+                cell = "#picker-cell"
+            cr.set_source_rgba(*theme.bg(cell))
             rounded_rect(cr, x, y, w, h, radius)
             cr.fill()
 
             inner_w, inner_h = w - 2 * border, h - 2 * border
             pixbuf = self._thumbs.get(self._items[index], inner_w, inner_h)
             cr.save()
-            rounded_rect(cr, x + border, y + border, inner_w, inner_h, radius - border)
+            rounded_rect(cr, x + border, y + border, inner_w, inner_h, max(0, radius - border))
             cr.clip()
             if pixbuf is not None:
                 Gdk.cairo_set_source_pixbuf(cr, pixbuf, x + border, y + border)
             else:
-                cr.set_source_rgb(0.05, 0.05, 0.05)
+                cr.set_source_rgba(*theme.bg("#picker-placeholder"))
             cr.paint()
             cr.restore()
         for index in range(last, min(count, last + layout.cols)):
@@ -307,7 +309,7 @@ class PickerWindow(ShapedWindow):
     def _on_key(self, _widget, event):
         if self.closing or self._layout is None:
             return True
-        key, count = event.keyval, len(self._items)
+        key, count = binds.nav_key(event), len(self._items)
         if key == Gdk.KEY_Escape:
             self._controller.close()
             return True

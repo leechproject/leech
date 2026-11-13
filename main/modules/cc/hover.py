@@ -7,18 +7,19 @@ gi.require_version("GtkLayerShell", "0.1")
 from gi.repository import Gtk, Gdk, GtkLayerShell
 
 from modules.common.shapes import rounded_rect
+from modules.common import theme
 from modules.common.surface import init_layer
 
 SIZE = 5
 BAR_W = 22
 BAR_H = 4
-BAR_PAD = 5
+BAR_PAD = theme.pad("#cc-handle")
 HANDLE_H = BAR_PAD + BAR_H + BAR_PAD
 
 
 def draw_handle(cr, x, y, w, h, at_top):
     cy = y + BAR_PAD if at_top else y + h - BAR_PAD - BAR_H
-    cr.set_source_rgb(1, 1, 1)
+    cr.set_source_rgba(*theme.bg("#cc-handle"))
     rounded_rect(cr, x + (w - BAR_W) / 2, cy, BAR_W, BAR_H, BAR_H / 2)
     cr.fill()
 

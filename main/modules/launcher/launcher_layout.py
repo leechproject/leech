@@ -1,4 +1,5 @@
 from modules import config
+from modules.common import theme
 
 ROW_H = config.LAUNCHER_ROW_H
 GAP = config.LAUNCHER_ROW_GAP
@@ -15,7 +16,8 @@ MENU_ITEM_H = MENU_ICON + 2 * MENU_PAD
 MENU_H = MENU_EDGE + MENU_ITEMS * MENU_ITEM_H + (MENU_ITEMS - 1) * MENU_GAP + MENU_EDGE
 MENU_EXTRA = MENU_H + GAP
 
-PAD_L, ICON_GAP, PAD_R = 4, 5, 2
+_ROW_PADDING = theme.padding("#launcher-row")
+PAD_L, ICON_GAP, PAD_R = _ROW_PADDING[3], theme.gap("#launcher-row"), _ROW_PADDING[1]
 
 
 def dock_width(n, edge=config.DOCK_EDGE, icon=config.DOCK_ICON, gap=config.DOCK_GAP):

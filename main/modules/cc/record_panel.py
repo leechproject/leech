@@ -12,29 +12,29 @@ from modules.animations import anim
 from modules.animations.anim import Tween
 from modules.common import drawing, glyph, timefmt
 from modules.common.shapes import rounded_rect
+from modules.cc import record_layout as rl
+from modules.common import theme
 
-PLATE_H = 44
+PLATE_H = rl.PLATE_H
 MESSAGE_H = 18
-ICON = 24
-EDGE = 6
-GAP = 6
-HIT = 15
+ICON = theme.font("#cc-record-button")
+ITEM_ICON = theme.font("#cc-record-item")
 MESSAGE_MS = 1500
 TRAY_GLYPH = config.TRAY_ICON or "\uf077"
 MESSAGE = "Can't change while record is running"
 
-IDLE = ((9 / 255, 9 / 255, 9 / 255), (1.0, 1.0, 1.0))
-RECORDING = ((212 / 255, 212 / 255, 212 / 255), (0.0, 0.0, 0.0))
-
 
 class RecordPanel(Gtk.DrawingArea):
-    def __init__(self, width, recorder, on_record, on_resize):
+    def __init__(self, width, recorder, on_record, on_resize, on_hover=None):
         super().__init__()
         self.set_name("cc-record-panel")
         self._width = width
         self._recorder = recorder
         self._on_record = on_record
         self._on_resize = on_resize
+        self._on_hover = on_hover
+        self._hover = None
+        self._focus = None
         self.audio = False
         self.microphone = False
         self._tray = 0.0
@@ -45,9 +45,12 @@ class RecordPanel(Gtk.DrawingArea):
         self._tray_tween = Tween(anim.ms(180), self._on_tray_tick)
         self._extra_tween = Tween(anim.ms(), self._on_extra_tick)
         self.set_size_request(width, PLATE_H)
-        self.add_events(Gdk.EventMask.BUTTON_PRESS_MASK)
+        self.add_events(Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.POINTER_MOTION_MASK
+                        | Gdk.EventMask.LEAVE_NOTIFY_MASK)
         self.connect("draw", self._on_draw)
         self.connect("button-press-event", self._on_press)
+        self.connect("motion-notify-event", self._on_motion)
+        self.connect("leave-notify-event", self._on_leave)
 
     def height(self):
         return PLATE_H + round(self._extra)
@@ -56,32 +59,36 @@ class RecordPanel(Gtk.DrawingArea):
         self.queue_draw()
 
 
-    def _centers(self):
-        cy = EDGE + 4 + ICON / 2
-        record = EDGE + ICON / 2
-        pause = record + ICON + GAP
-        tray = self._width - EDGE - ICON / 2
-        audio = tray - ICON - GAP
-        microphone = audio - ICON - GAP
-        return cy, {"record": record, "pause": pause, "tray": tray, "audio": audio, "microphone": microphone}
+    def rects(self):
+        """Pressable elements, left to right, as {name: (x, y, w, h)} in panel coordinates."""
+        return rl.rects(self._width, self._recorder.active(), self._tray_open)
 
-    def _hit(self, x, y):
-        cy, centers = self._centers()
-        if abs(y - cy) > HIT:
-            return None
-        recording = self._recorder.active()
-        for name, cx in centers.items():
-            if name == "pause" and not recording:
-                continue
-            if name in ("audio", "microphone") and not self._tray_open:
-                continue
-            if abs(x - cx) <= HIT:
-                return name
-        return None
+    def set_focus(self, name):
+        """Keyboard focus (None clears it); it looks like the mouse hover and replaces it."""
+        if name is not None:
+            self._hover = None
+        if name != self._focus:
+            self._focus = name
+            self.queue_draw()
+
+    def _on_motion(self, _widget, event):
+        name = rl.hit(self._width, self._recorder.active(), self._tray_open, event.x, event.y)
+        if name is not None and self._on_hover is not None:
+            self._on_hover()
+        if name != self._hover:
+            self._hover = name
+            self.queue_draw()
+        return False
+
+    def _on_leave(self, _widget, _event):
+        if self._hover is not None:
+            self._hover = None
+            self.queue_draw()
+        return False
 
     def _on_press(self, _widget, event):
         if event.button == 1:
-            self.press(self._hit(event.x, event.y))
+            self.press(rl.hit(self._width, self._recorder.active(), self._tray_open, event.x, event.y))
         return True
 
     def press(self, name):
@@ -131,50 +138,72 @@ class RecordPanel(Gtk.DrawingArea):
         layout.set_font_description(desc)
         return layout
 
+    def _highlighted(self, name):
+        return name == (self._focus if self._focus is not None else self._hover)
+
+    def _plate(self, cr, rect, selector):
+        cr.set_source_rgba(*theme.bg(selector))
+        rounded_rect(cr, *rect, theme.radius(selector))
+        cr.fill()
+
     def _on_draw(self, widget, cr):
         w, h = widget.get_allocated_width(), widget.get_allocated_height()
         recording = self._recorder.active()
-        plate, ink = RECORDING if recording else IDLE
-        cr.set_source_rgb(*plate)
-        rounded_rect(cr, 0, 0, w, h, 10)
-        cr.fill()
-        cr.set_source_rgb(*ink)
-        cy, centers = self._centers()
+        panel = rl.panel_selector(recording)
+        ink = theme.fg(panel)
+        self._plate(cr, (0, 0, w, h), panel)
+        rects = rl.rects(self._width, recording, True)
 
+        def button(name, on=False):
+            selector = rl.selector(name, recording, on, self._highlighted(name))
+            x, y, bw, bh = rects[name]
+            self._plate(cr, rects[name], selector)
+            cr.set_source_rgba(*theme.fg(selector))
+            return x + bw / 2, y + bh / 2, theme.bg(selector)[:3]
+
+        cx, cy, _ = button("record")
         if recording:
-            drawing.stop_square(cr, centers["record"], cy, ICON)
+            drawing.stop_square(cr, cx, cy, ICON)
+            cx, cy, _ = button("pause")
             if self._recorder.paused:
-                drawing.play_triangle(cr, centers["pause"], cy, ICON)
+                drawing.play_triangle(cr, cx, cy, ICON)
             else:
-                drawing.pause_bars(cr, centers["pause"], cy, ICON)
-            timer = self._layout(timefmt.stopwatch(self._recorder.elapsed()), 14)
+                drawing.pause_bars(cr, cx, cy, ICON)
+            x, _, bw, _ = rects["pause"]
+            timer = self._layout(timefmt.stopwatch(self._recorder.elapsed()), theme.font("#cc-record"))
             _, th = timer.get_pixel_size()
-            cr.move_to(centers["pause"] + ICON / 2 + GAP, cy - th / 2)
+            cr.set_source_rgba(*ink)
+            cr.move_to(x + bw + rl.PAD, cy - th / 2)
             PangoCairo.show_layout(cr, timer)
         else:
-            drawing.record_dot(cr, centers["record"], cy, ICON)
+            drawing.record_dot(cr, cx, cy, ICON)
 
-        cr.save()
-        cr.translate(centers["tray"], cy)
-        cr.rotate(-math.pi / 2 + math.pi * self._tray)
-        glyph.show_centered(cr, self._layout(TRAY_GLYPH, 16), 0, 0)
-        cr.restore()
-
+        tray = rl.tray_rect(self._width, self._tray)
+        self._plate(cr, tray, "#cc-record-tray")
         if self._tray > 0.01:
             cr.save()
+            rounded_rect(cr, *tray, theme.radius("#cc-record-tray"))
+            cr.clip()
             cr.push_group()
-            cr.set_source_rgb(*ink)
-            drawing.speaker(cr, centers["audio"] + 2, cy, ICON, 100, not self.audio)
-            cr.set_source_rgb(*ink)
-            drawing.microphone(cr, centers["microphone"], cy, ICON, not self.microphone, plate)
+            cx, cy, _ = button("audio", self.audio)
+            drawing.speaker(cr, cx + 1, cy, ITEM_ICON, 100, not self.audio)
+            cx, cy, fill = button("microphone", self.microphone)
+            drawing.microphone(cr, cx, cy, ITEM_ICON, not self.microphone, fill)
             cr.pop_group_to_source()
             cr.paint_with_alpha(self._tray)
             cr.restore()
 
+        cx, cy, _ = button("tray")
+        cr.save()
+        cr.translate(cx, cy)
+        cr.rotate(-math.pi / 2 + math.pi * self._tray)
+        glyph.show_centered(cr, self._layout(TRAY_GLYPH, theme.font("#cc-record-tray")), 0, 0)
+        cr.restore()
+
         if self._extra > 0.5:
-            text = self._layout(MESSAGE, 11)
+            text = self._layout(MESSAGE, theme.font("#cc-record-message"))
             tw, th = text.get_pixel_size()
-            cr.set_source_rgba(*ink, self._extra / MESSAGE_H)
+            cr.set_source_rgba(*ink[:3], ink[3] * self._extra / MESSAGE_H)
             cr.move_to((w - tw) / 2, PLATE_H + (MESSAGE_H - th) / 2 - 4)
             PangoCairo.show_layout(cr, text)
         return False

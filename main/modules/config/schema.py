@@ -45,6 +45,7 @@ SCHEMA = {
     "GLOBAL_FONT": P(PathType(pattern=True)),
     "GLOBAL_ANIMATION_SPEED": P(Duration(), "220ms"),
     "outline-thickness": P(Int(1, 10), "1"),
+    "vim-keybinds": P(Bool(), "n"),
     "wm": P(Text(), "hypr"),
     "bar": {
         "module-enabled": P(Bool(), "y"),
@@ -127,6 +128,7 @@ SCHEMA = {
                 "show-percentage": P(Bool(), "y"),
                 "show-text-status": P(Bool(), "y"),
                 "show-status-icon": P(Bool(), "y"),
+                "undercover": P(Bool(), "n"),
             },
             "power": {
                 "module-enabled": P(Bool(), "y"),

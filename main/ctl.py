@@ -6,8 +6,8 @@ sys.pycache_prefix = str(Path(__file__).resolve().parents[1] / ".shellcache")
 
 USAGE = """python ctl.py toggle cc | cc-full | launcher | wallpaper | battery | power | player
 python ctl.py close
-python ctl.py apps [query]
-python ctl.py pin | unpin <app>
+python ctl.py apps [запрос]
+python ctl.py pin | unpin <приложение>
 python ctl.py pins
 python ctl.py volume up | down | mute
 python ctl.py brightness up | down
@@ -48,7 +48,7 @@ try:
         while chunk := s.recv(4096):
             reply += chunk
 except OSError as e:
-    sys.exit(f"leech is not running? ({e})")
+    sys.exit(f"leech не запущен? ({e})")
 
 text = reply.decode("utf-8", "replace").strip()
 if text and text != "ok":

@@ -12,14 +12,17 @@ from fabric.widgets.window import Window
 
 from modules import config
 from modules.bar.bar import LayoutIndicator, launcher_widget
+from modules.common.glyph import GlyphLabel
+from modules.parsing import battery
 from modules.bar.taskbar_layout import group_start, fade_strength
 from modules.animations import anim
 from modules.animations.anim import Tween
+from modules.common import theme
 from modules.common.surface import init_layer
 from modules.dock.row import DockRow
 
 HEIGHT = config.DOCK_H
-EDGE = 5
+EDGE = theme.pad("#taskbar-plates")
 PLATE_H = HEIGHT - 2 * EDGE
 FADE = 8
 WHEEL_STEP = config.DOCK_ICON + config.DOCK_GAP
@@ -33,7 +36,7 @@ def _launcher_icon():
 
 
 class Taskbar(Window):
-    def __init__(self, wm, canvas, on_launcher=None, on_clock=None):
+    def __init__(self, wm, canvas, on_launcher=None, on_clock=None, on_profiles=None):
         super().__init__(name="taskbar", visible=False, all_visible=False)
         visual = self.get_screen().get_rgba_visual()
         if visual:
@@ -90,6 +93,7 @@ class Taskbar(Window):
             plate = Gtk.Box()
             plate.set_name("taskbar-tray")
             plate.set_valign(CENTER)
+            self._tray_plate = plate
             if config.TRAY_UNDERCOVER:
                 plate.add(self._build_tray_toggle())
             else:
@@ -97,6 +101,22 @@ class Taskbar(Window):
                 self.tray = CollapsibleTray(True, "taskbar-tray", PLATE_H, canvas)
                 plate.add(self.tray)
             static.pack_start(plate, False, False, 0)
+        # Power profiles: the battery glyph, as on the bar; opens the notch's power profiles menu.
+        self.profiles = None
+        if config.BAR_PROFILES_SHOWN and battery.read() is not None:
+            self._profiles_label = GlyphLabel(label="")
+            self._profiles_label.set_halign(CENTER)
+            self._profiles_label.set_valign(CENTER)
+            self.profiles = Gtk.Button()
+            self.profiles.set_name("taskbar-profiles")
+            self.profiles.set_relief(Gtk.ReliefStyle.NONE)
+            self.profiles.set_can_focus(False)
+            self.profiles.set_valign(CENTER)
+            self.profiles.set_size_request(PLATE_H, PLATE_H)
+            self.profiles.add(self._profiles_label)
+            if on_profiles:
+                self.profiles.connect("clicked", lambda *_: on_profiles())
+            static.pack_start(self.profiles, False, False, 0)
         self.layout_box = Gtk.Box()
         self.layout_box.set_name("taskbar-layout")
         self.layout_box.set_valign(CENTER)
@@ -132,6 +152,20 @@ class Taskbar(Window):
         wm.subscribe(self._on_state)
         if self.clock is not None:
             self._tick_clock()
+        if self.profiles is not None:
+            self._tick_battery()
+            GLib.timeout_add_seconds(10, self._tick_battery)
+
+    def set_profiles_open(self, is_open):
+        if self.profiles is not None:
+            context = self.profiles.get_style_context()
+            (context.add_class if is_open else context.remove_class)("on")
+
+    def _tick_battery(self):
+        data = battery.read()
+        if data:
+            self._profiles_label.set_label(battery.icon(*data, bool(battery.on_ac())))
+        return True
 
     def _on_state(self, state):
         self.row.set_clients(state.clients)
@@ -157,6 +191,10 @@ class Taskbar(Window):
 
     def toggle_tray(self):
         self._tray_open = not self._tray_open
+        # Undercover tray: the toggle inverts while its window is open, like the clock and profiles buttons.
+        context = self._tray_plate.get_style_context()
+        (context.add_class if self._tray_open else context.remove_class)("on")
+        self._toggle.queue_draw()
         self._toggle_tween.run((self._toggle.progress,), (1.0 if self._tray_open else 0.0,))
         if self._tray_open:
             origin = self._toggle.translate_coordinates(self, 0, 0)

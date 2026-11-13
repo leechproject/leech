@@ -15,13 +15,13 @@ from modules.animations.anim import Tween
 from modules.bar import tray_compat
 from modules.common.shapes import rounded_rect
 from modules.bar.tray_layout import clamp_scroll, fade_strengths, visible_length
-from modules.common import debug
+from modules.common import debug, theme
 from modules.common.glyph import show_centered
 from modules.config.geometry import scaled
 
 ICON_SIZE = scaled(24, config.BAR_SCALE)
-SPACING = scaled(6, config.BAR_SCALE)
-EDGE = scaled(6, config.BAR_SCALE)
+SPACING = scaled(theme.gap("#systray-items"), config.BAR_SCALE)
+EDGE = scaled(theme.pad("#systray-items"), config.BAR_SCALE)
 FADE = EDGE - 1
 TOGGLE = scaled(40, config.BAR_SCALE)
 WHEEL_STEP = ICON_SIZE + SPACING

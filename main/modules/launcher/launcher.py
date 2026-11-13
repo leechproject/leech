@@ -16,6 +16,7 @@ from modules.common import drawing
 from modules.common import glyph
 from modules.common import binds
 from modules.common import layerkeys
+from modules.common import theme
 from modules.launcher import launcher_layout as ll
 from modules.launcher import start_layout as sl
 from modules.launcher.start_menu import StartFooter
@@ -36,12 +37,14 @@ DETACHED = START or SEP
 LIFT = sl.SCREEN_GAP if START else (config.DOCK_SEP_GAP if SEP else 0)
 FRAME = EDGE.frame + LIFT
 _NO_INPUT = no_input()
-_ROW_RADIUS = 10
-_ITEM_RADIUS = 8
 _HEADER_BAR = (22, 4)
 _HIDDEN_ALPHA = 0.45
 _NO_TEXT_MODS = (Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.MOD1_MASK | Gdk.ModifierType.SUPER_MASK
                  | Gdk.ModifierType.META_MASK)
+
+_TAB = (Gdk.KEY_Tab, Gdk.KEY_ISO_Left_Tab, Gdk.KEY_KP_Tab)
+# Tab moves the keyboard focus between these zones; letters type into the search only in "search".
+ZONES = (("search",) if config.LAUNCHER_SEARCHBAR else ()) + ("list",) + (("footer",) if START else ())
 
 _NAV = {Gdk.KEY_Up: "up", Gdk.KEY_Down: "down", Gdk.KEY_Home: "home", Gdk.KEY_End: "end",
         Gdk.KEY_Page_Up: "pgup", Gdk.KEY_Page_Down: "pgdn"}
@@ -65,6 +68,7 @@ class LauncherWindow(ShapedWindow):
         self._nav_mode = None
         self._menu_row = None
         self._menu_sel = None
+        self._zone = ZONES[0]
         self._header_hover = False
         self._scroll = 0.0
         self._pointer = None
@@ -328,7 +332,7 @@ class LauncherWindow(ShapedWindow):
         if count == 0:
             layout = self._text_layout("No applications", None)
             text_w, _ = layout.get_pixel_size()
-            cr.set_source_rgb(0.4, 0.4, 0.4)
+            cr.set_source_rgba(*theme.fg("#launcher-empty"))
             cr.move_to(x0 + max(ll.EDGE, (width - text_w) / 2), list_top + 8)
             PangoCairo.show_layout(cr, layout)
         first = max(0, int(self._scroll // ll.PITCH) - 1)
@@ -346,28 +350,27 @@ class LauncherWindow(ShapedWindow):
 
     def _draw_header(self, cr, x0, width, body_top):
         cx, cy = x0 + width / 2, body_top + config.LAUNCHER_HEAD_H / 2
+        header = "#launcher-header.hover" if self._header_hover else "#launcher-header"
         if self._show_hidden:
-            shade = 0.11 if self._header_hover else 0.067
-            layout = self._text_layout(ICON_EYE, None, 14)
-            cr.set_source_rgb(shade, shade, shade)
+            layout = self._text_layout(ICON_EYE, None, theme.font("#launcher-header"))
+            cr.set_source_rgba(*theme.fg(header))
             glyph.show_centered(cr, layout, cx, cy)
         else:
-            shade = 0.067 if self._header_hover else 0.035
             bar_w, bar_h = min(_HEADER_BAR[0], width - 2 * ll.EDGE), _HEADER_BAR[1]
-            cr.set_source_rgb(shade, shade, shade)
+            cr.set_source_rgba(*theme.bg(header))
             rounded_rect(cr, cx - bar_w / 2, cy - bar_h / 2, bar_w, bar_h, bar_h / 2)
             cr.fill()
 
     def _draw_search(self, cr, x0, width, top):
         edge = ll.SEARCH_EDGE
         bar_x, bar_w, bar_h = x0 + edge, width - 2 * edge, ll.SEARCH_H
-        cr.set_source_rgb(*config.LAUNCHER_COLOR_SEARCH)
-        rounded_rect(cr, bar_x, top, bar_w, bar_h, 10)
+        cr.set_source_rgba(*theme.bg("#launcher-search"))
+        rounded_rect(cr, bar_x, top, bar_w, bar_h, theme.radius("#launcher-search"))
         cr.fill()
 
         icon_w = 14
         room = bar_w - edge - icon_w - 6 - edge
-        cr.set_source_rgb(1, 1, 1)
+        cr.set_source_rgba(*theme.fg("#launcher-search"))
         if room < ll.MIN_TEXT:
             drawing.magnifier(cr, bar_x + bar_w / 2, top + bar_h / 2, icon_w)
             return
@@ -377,14 +380,16 @@ class LauncherWindow(ShapedWindow):
         text_x = bar_x + edge + icon_w + 6
         cr.move_to(text_x, top + (bar_h - text_h) / 2)
         PangoCairo.show_layout(cr, text)
-        cr.rectangle(text_x + min(text_w, room) + 1, top + (bar_h - 14) / 2, 1, 14)
-        cr.fill()
+        if self._zone == "search":
+            cr.rectangle(text_x + min(text_w, room) + 1, top + (bar_h - 14) / 2, 1, 14)
+            cr.fill()
 
     def _draw_row(self, cr, index, x, y, plate_w, width):
         entry = self._rows[index]
         active = index == self._selected
-        cr.set_source_rgb(*(config.LAUNCHER_COLOR_ROW_ACTIVE if active else config.LAUNCHER_COLOR_ROW))
-        rounded_rect(cr, x, y, plate_w, ll.ROW_H, _ROW_RADIUS)
+        row = "#launcher-row.active" if active else "#launcher-row"
+        cr.set_source_rgba(*theme.bg(row))
+        rounded_rect(cr, x, y, plate_w, ll.ROW_H, theme.radius(row))
         cr.fill()
 
         alpha = _HIDDEN_ALPHA if entry.id in self._hidden else 1.0
@@ -400,7 +405,8 @@ class LauncherWindow(ShapedWindow):
             room = ll.text_width(width) - (config.LAUNCHER_HEART + 4 if liked else 0)
             layout = self._text_layout(entry.name, room)
             _, text_h = layout.get_pixel_size()
-            cr.set_source_rgba(1, 1, 1, alpha)
+            r, g, b, a = theme.fg(row)
+            cr.set_source_rgba(r, g, b, a * alpha)
             cr.move_to(icon_x + config.DOCK_ICON + ll.ICON_GAP, y + (ll.ROW_H - text_h) / 2)
             PangoCairo.show_layout(cr, layout)
             if liked:
@@ -416,8 +422,8 @@ class LauncherWindow(ShapedWindow):
     def _draw_menu(self, cr, x0, width, top, entry):
         pad, edge, gap = ll.MENU_PAD, ll.MENU_EDGE, ll.MENU_GAP
         menu_x, menu_w = x0 + pad, width - 2 * pad
-        cr.set_source_rgb(0, 0, 0)
-        rounded_rect(cr, menu_x, top, menu_w, ll.MENU_H, _ROW_RADIUS)
+        cr.set_source_rgba(*theme.bg("#launcher-menu"))
+        rounded_rect(cr, menu_x, top, menu_w, ll.MENU_H, theme.radius("#launcher-menu"))
         cr.fill()
 
         item_w = menu_w - 2 * edge
@@ -425,12 +431,12 @@ class LauncherWindow(ShapedWindow):
         for k, (icon_text, label) in enumerate(self._menu_items(entry)):
             y = top + edge + k * (ll.MENU_ITEM_H + gap)
             active = k == self._menu_sel
-            cr.set_source_rgb(*(config.LAUNCHER_COLOR_MENU_ITEM_ACTIVE if active else config.LAUNCHER_COLOR_MENU_ITEM))
-            rounded_rect(cr, menu_x + edge, y, item_w, ll.MENU_ITEM_H, _ITEM_RADIUS)
+            item = "#launcher-menu-item.active" if active else "#launcher-menu-item"
+            cr.set_source_rgba(*theme.bg(item))
+            rounded_rect(cr, menu_x + edge, y, item_w, ll.MENU_ITEM_H, theme.radius(item))
             cr.fill()
 
-            shade = 0.0 if active else 1.0
-            cr.set_source_rgb(shade, shade, shade)
+            cr.set_source_rgba(*theme.fg(item))
             icon_w = ll.MENU_ICON
             icon_x = menu_x + edge + (pad if with_text else (item_w - icon_w) / 2)
             icon_cx, icon_cy = icon_x + icon_w / 2, y + ll.MENU_ITEM_H / 2
@@ -529,6 +535,8 @@ class LauncherWindow(ShapedWindow):
         if key == Gdk.KEY_Escape:
             if self._footer is not None and self._footer.menu_open:
                 self._footer.close_menu()
+                if self._zone == "footer":
+                    self._footer.focus(("power",))
                 self._area.queue_draw()
             elif self._menu_row is not None:
                 self._close_menu()
@@ -537,6 +545,18 @@ class LauncherWindow(ShapedWindow):
             else:
                 self._controller.close()
             return True
+
+        if key in _TAB and not event.state & _NO_TEXT_MODS:
+            self._cycle_zone(-1 if key == Gdk.KEY_ISO_Left_Tab or event.state & Gdk.ModifierType.SHIFT_MASK else 1)
+            return True
+
+        if self._footer is not None and (self._zone == "footer" or self._footer.menu_open):
+            if self._footer.key(binds.nav_key(event)):
+                self._area.queue_draw()
+            return True
+
+        if self._zone == "list":
+            key = binds.nav_key(event)
 
         if binds.matches(config.LAUNCHER_MENU_BIND, event):
             if self._menu_row is not None:
@@ -587,12 +607,41 @@ class LauncherWindow(ShapedWindow):
             return True
 
         char = self._typed_char(event) if config.LAUNCHER_SEARCHBAR else ""
+        if char and self._zone == "list" and config.VIM_KEYBINDS:
+            # The list takes vim keys; "/" jumps to the search like in vim, other letters do nothing.
+            if char == "/":
+                self._set_zone("search")
+            return True
         if char:
             if self._menu_row is not None:
                 self._close_menu()
+            if self._zone != "search":
+                self._set_zone("search")
             self._set_query(self._query + char)
             return True
         return False
+
+    def _cycle_zone(self, step):
+        index = ZONES.index(self._zone) if self._zone in ZONES else 0
+        self._set_zone(ZONES[(index + step) % len(ZONES)])
+
+    def _set_zone(self, zone):
+        if zone == self._zone:
+            return
+        if self._zone == "footer" and self._footer is not None:
+            self._footer.close_menu()
+            self._footer.focus(None)
+        self._zone = zone
+        if zone == "list" and self._rows and self._selected is None:
+            self._nav_mode = "keyboard"
+            self._selected = max(0, min(len(self._rows) - 1, int(self._scroll // ll.PITCH)))
+            self._scroll = ll.scroll_to_show(self._scroll, self._selected, len(self._rows), None, self._list_h())
+        elif zone == "footer":
+            self._nav_mode = "keyboard"
+            if self._menu_row is not None:
+                self._close_menu()
+            self._footer.focus(("power",))
+        self._area.queue_draw()
 
 
     def _toggle_menu(self, index, from_keyboard=False):

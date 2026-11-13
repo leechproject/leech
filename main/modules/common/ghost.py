@@ -5,6 +5,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GLib, Gtk
 
 from modules import config
+from modules.common import theme
 from modules.animations import anim
 from modules.animations.anim import Tween
 from modules.common.icons import load_icon
@@ -85,7 +86,8 @@ class DockGhost:
                 Gdk.cairo_set_source_pixbuf(cr, pixbuf, 0, 0)
                 cr.paint_with_alpha(self.alpha)
                 cr.restore()
-            cr.set_source_rgba(1, 1, 1, self.alpha)
+            r, g, b, a = theme.bg("#dock-dot")
+            cr.set_source_rgba(r, g, b, a * self.alpha)
             for dx in dock_items.dot_offsets(item.dots, config.DOCK_ICON) if item.dots else ():
                 dot_y = dock_items.dot_top(y, config.DOCK_ICON, self._edge.top)
                 cr.arc(x + dx + radius, dot_y + radius, radius, 0, 6.283185307179586)

@@ -1,3 +1,4 @@
+import functools
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -22,6 +23,16 @@ def _plate_style():
     ctx = probe.get_style_context()
     color = ctx.get_property("background-color", Gtk.StateFlags.NORMAL)
     return (color.red, color.green, color.blue, color.alpha), ctx.get_property("border-radius", Gtk.StateFlags.NORMAL)
+
+
+@functools.lru_cache(maxsize=1)
+def _plate_spacing():
+    """margin: gap from the plate to the bar's edges; padding: how much the plate shrinks (style.css, scaled
+    with the bar like the rest of the bar's CSS)."""
+    # Keep the probe referenced: a context whose widget is already collected loses its style.
+    probe = Gtk.Box(name="ws-plate")
+    ctx = probe.get_style_context()
+    return ctx.get_margin(Gtk.StateFlags.NORMAL).left, ctx.get_padding(Gtk.StateFlags.NORMAL).left
 
 
 def plate_rect(button, across, horizontal, gap, shrink=0):
@@ -112,7 +123,7 @@ class Workspaces(Gtk.Box):
         across = self.get_allocated_height() if self._horizontal else self.get_allocated_width()
         alloc = button.get_allocation()
         return plate_rect((x, y, alloc.width, alloc.height), across, self._horizontal,
-                          config.WS_PLATE_GAP, config.WS_PLATE_SHRINK)
+                          *_plate_spacing())
 
     def _current_rect(self):
         target = self._button_rect(self._active)

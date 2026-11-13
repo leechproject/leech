@@ -19,6 +19,7 @@ from gi.repository import GtkLayerShell, Gtk, Gdk, GLib
 from fabric.widgets.window import Window
 
 from modules import config
+from modules.common import theme
 from modules.common.surface import init_layer
 
 _MIN_SELECTION = 5
@@ -254,7 +255,7 @@ class ScreenshotOverlay(Window):
 
     def _on_draw(self, _area, cr):
         cr.set_operator(cairo.OPERATOR_SOURCE)
-        cr.set_source_rgba(0, 0, 0, 0.25)
+        cr.set_source_rgba(*theme.bg("#screenshot-overlay"))
         cr.paint()
         if self._start is not None:
             x, y, w, h = self._rect()
@@ -262,7 +263,7 @@ class ScreenshotOverlay(Window):
             cr.rectangle(x, y, w, h)
             cr.fill()
             cr.set_operator(cairo.OPERATOR_OVER)
-            cr.set_source_rgba(1, 1, 1, 0.9)
+            cr.set_source_rgba(*theme.fg("#screenshot-overlay"))
             cr.set_line_width(1)
             cr.rectangle(x + 0.5, y + 0.5, w, h)
             cr.stroke()

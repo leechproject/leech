@@ -1,12 +1,14 @@
+from modules.common import theme
+
 FOOTER_H = 48
-FOOTER_EDGE = 7
+FOOTER_EDGE = theme.pad("#start-footer")
 BUTTON = FOOTER_H - 2 * FOOTER_EDGE
-MENU_PAD = 6
+MENU_PAD = theme.pad("#start-menu")
 MENU_ITEM_H = 34
 MENU_W = 150
 MENU_ITEMS = ("sleep", "reboot", "shutdown")
-SCREEN_GAP = 10
-NAME_GAP = 7
+SCREEN_GAP = theme.gap("#start-launcher")
+NAME_GAP = theme.gap("#start-footer")
 REFERENCE_ICONS = 16
 
 

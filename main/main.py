@@ -63,6 +63,12 @@ def apply_css():
     _add_provider(base)
     apply_fonts()
 
+    from modules.common import theme as drawn
+    fallback = Gtk.CssProvider()
+    fallback.load_from_data(drawn.fallback_css().encode())
+    _add_provider(fallback, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION - 1)
+    drawn.set_loaded()
+
     theme = Gtk.CssProvider()
     try:
         theme.load_from_path(str(config.STYLE_FILE))

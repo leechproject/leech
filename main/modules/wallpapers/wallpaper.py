@@ -15,6 +15,7 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GtkLayerShell, Gtk, Gdk, GLib, GdkPixbuf
 
+from modules.common import theme
 from modules.common.surface import ShapedWindow, no_input, init_layer, on_monitor
 
 from modules import config
@@ -239,7 +240,7 @@ class WallpaperSurface(ShapedWindow):
         self._area.queue_draw()
 
     def _on_draw(self, _area, cr):
-        cr.set_source_rgb(0, 0, 0)
+        cr.set_source_rgba(*theme.bg("#wallpaper-fill"))
         cr.paint()
         if self._pixbuf is not None and self._blur_t < 1.0:
             Gdk.cairo_set_source_pixbuf(cr, self._pixbuf, 0, 0)

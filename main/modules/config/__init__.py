@@ -26,6 +26,7 @@ STYLE_FILE = _get("STYLE_FILE")
 GLOBAL_FONT = _get("GLOBAL_FONT") or ()
 ANIMATION_MS = _get("GLOBAL_ANIMATION_SPEED")
 OUTLINE_THICKNESS = _get("outline-thickness")
+VIM_KEYBINDS = _get("vim-keybinds")
 ICON_FONT = _get("ICON_FONT") or ()
 WM = _get("wm")
 
@@ -70,9 +71,6 @@ BAR_GAP = geometry.BAR_GAP
 BAR_MARGINS = geometry.bar_margins(_VISIBLE, BAR_POSITION, BAR_OFFSET) if BAR_DETACHED else {}
 LAUNCHER_BUTTON_ICON = _get("bar.launcher-btn.launcher-button-icon") or Icon()
 
-RADIUS = 10
-FRAME_RADIUS = RADIUS if FRAME_ENABLED else 0
-COLOR = (0.0, 0.0, 0.0, 1.0)
 
 WORKSPACES = _get("bar.workspace.ws-shown")
 WS_CLICKABLE = _get("bar.workspace.ws-clickable")
@@ -80,8 +78,6 @@ WS_STYLE = _get("bar.workspace.ws-style")
 WS_ICONS = {state: _glyph(f"bar.workspace.ws-{key}-icon")
             for state, key in (("empty", "empty"), ("occupied", "inuse"), ("active", "active"))}
 WS_HIGHLIGHT = _get("bar.workspace.ws-active-highlighting")
-WS_PLATE_GAP = geometry.scaled(5, BAR_SCALE)
-WS_PLATE_SHRINK = geometry.scaled(3, BAR_SCALE)
 BAR_LAUNCHER_SHOWN = _get("bar.launcher-btn.launcher-button-shown")
 BAR_PROFILES_SHOWN = _get("bar.power-profiles-shown")
 BAR_CLOCK_SHOWN = _get("bar.clock-shown")
@@ -114,15 +110,10 @@ PICKER_TOP = geometry.follows_dock(_get("wallpapers.position"), DOCK_TOP) and no
 
 NOTCH_W = _get("notch.expand.width")
 NOTCH_H = _get("notch.expand.height")
-NOTCH_SPACING = 6
-BUTTONS_EDGE = NOTCH_SPACING + 3
 
 IDLE_SPACING = _get("notch.placeholder-edge-spacing")
 IDLE_PADDING = _get("notch.placeholder-spacing")
 IDLE_TEXT = _get("notch.placeholder-text")
-IDLE_PLATE_COLOR = (17 / 255, 17 / 255, 17 / 255)
-IDLE_PLATE_RADIUS = 10
-FRAME_RADIUS = RADIUS if FRAME_ENABLED else 0
 
 NOTCH_HIDE_BY_WINDOW = _get("notch.hide-by-window")
 _EXPAND = _get("notch.expand.enable")
@@ -134,13 +125,13 @@ NOTCH_PROFILES = tuple(profile for profile, key in (("power-saver", "eco"), ("ba
 NOTCH_SHOW_PERCENTAGE = _get("notch.expand.power-profiles.show-percentage")
 NOTCH_SHOW_TEXT_STATUS = _get("notch.expand.power-profiles.show-text-status")
 NOTCH_SHOW_STATUS_ICON = _get("notch.expand.power-profiles.show-status-icon")
+# The power profiles menu opens above the Undercover taskbar's profiles button instead of in the notch.
+PROFILES_BY_TASKBAR = UNDERCOVER and "battery" in NOTCH_MENUS and _get("notch.expand.power-profiles.undercover")
 NOTCH_POWER_OPTIONS = tuple(name for name in ("reboot", "sleep", "shutdown")
                             if _get(f"notch.expand.power.options.{name}"))
 PLAYER_SHOW = {name: _get(f"notch.expand.player.show-{name}")
                for name in ("cover", "playbutton", "time", "timeline", "title", "artist")}
 
-PLAYER_SPACING = 5
-COVER_RADIUS = 8
 COVER_FALLBACK = Path(_get("notch.expand.player.cover-fallback-image"))
 ICON_ECO = _glyph("notch.expand.power-profiles.profiles.eco-icon")
 ICON_BALANCE = _glyph("notch.expand.power-profiles.profiles.balance-icon")
@@ -155,7 +146,6 @@ DOCK_MARK_RUNNED = _get("dock.mark-runned")
 DOCK_SHOW_LAUNCHED = _get("dock.show-launched")
 DOCK_EDGE = _get("dock.edge-spacing")
 DOCK_SEPARATE = _get("dock.style") == "sep"
-DOCK_SEP_GAP = 5
 _LAUNCHER_STYLE = _get("launcher.style")
 LAUNCHER_SEPARATE = DOCK_SEPARATE if _LAUNCHER_STYLE == "dock.style" else _LAUNCHER_STYLE == "sep"
 DOCK_GAP = _get("dock.item-spacing")
@@ -164,7 +154,6 @@ KC_W = _get("cc.stage1-width")
 CC_LEFT = _get("cc.position").startswith("left") and not UNDERCOVER
 CC_TOP = _get("cc.position").endswith("top") and not UNDERCOVER
 CC_SEPARATE = _get("cc.cc-style") == "sep"
-CC_SEP_GAP = 5
 CC_HOVER = _get("cc.hover-enabled") and not UNDERCOVER
 CC_CALENDAR = _get("cc.calendar-enabled")
 CC_STAGES = tuple(level for level in (1, 2) if _get(f"cc.stage{level}-enabled") and not (UNDERCOVER and level == 1))
@@ -192,13 +181,9 @@ CC_SLIDERS_PRIORITY = _get("cc.sliders-priority")
 CC_HORIZONTAL = _get("cc.sliders.orientation") == "horizontal"
 CC_SLIDERS = [(kind, _get(f"cc.sliders.{kind}-position")) for kind in ("brightness", "volume")
               if _get(f"cc.sliders.{kind}")]
-KC_PAD = 6
 KC_ROW1_H = 52
 KC_FULL_H = 440
-KC_PUSH_PAD = 5
 KC_CARD_ICON = 32
-KC_CARD_PAD = 6
-KC_CARD_H = KC_CARD_ICON + 2 * KC_CARD_PAD
 KC_FLOOD_ICON = 24
 
 PUSH_SECONDS = 5
@@ -227,15 +212,8 @@ VIDEO_EXTENSIONS = (".mp4", ".webm", ".mkv", ".gif", ".avi", ".mov", ".m4v")
 _PICKER_STYLE = _get("wallpapers.style")
 PICKER_SEPARATE = DOCK_SEPARATE if _PICKER_STYLE == "dock.style" else _PICKER_STYLE == "sep"
 PICKER_MARGIN = (_get("wallpapers.top-spacing"), _get("wallpapers.right-spacing"), _get("wallpapers.left-spacing"))
-PICKER_PAD = 8
-PICKER_SPACING = 8
 PICKER_COLUMNS = _get("wallpapers.row-size")
 PICKER_ROWS = _get("wallpapers.column-size")
-PICKER_BORDER = 3
-PICKER_BORDER_RADIUS = 15
-PICKER_COLOR_IDLE = (9 / 255, 9 / 255, 9 / 255)
-PICKER_COLOR_HOVER = (1.0, 1.0, 1.0)
-PICKER_COLOR_CURRENT = (102 / 255, 102 / 255, 102 / 255)
 THUMB_CACHE_MAX = 60
 
 CACHE_DIR = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "leech"
@@ -250,37 +228,62 @@ LAUNCHER_SEARCHBAR = _get("launcher.show-searchbar")
 LAUNCHER_SUPER_TAP = _get("launcher.open-on-super")
 LAUNCHER_MENU_ENABLED = _get("launcher.context-menu.enabled")
 LAUNCHER_HEAD_H = 24 if LAUNCHER_SHOW_HIDDEN_TOGGLE else LAUNCHER_EDGE
-LAUNCHER_MENU_PAD = 5
 LAUNCHER_MENU_EDGE = _get("launcher.context-menu.edge-spacing")
 LAUNCHER_MENU_GAP = _get("launcher.context-menu.item-spacing")
 LAUNCHER_MENU_BIND = _get("launcher.context-menu.bind")
 ICON_PIN = _glyph("launcher.context-menu.pin-icon")
 ICON_HIDE = _glyph("launcher.context-menu.hide-icon")
 LAUNCHER_MENU_ICON = 16
-LAUNCHER_COLOR_ROW = (9 / 255, 9 / 255, 9 / 255)
-LAUNCHER_COLOR_ROW_ACTIVE = (17 / 255, 17 / 255, 17 / 255)
-LAUNCHER_COLOR_MENU_ITEM = (17 / 255, 17 / 255, 17 / 255)
-LAUNCHER_COLOR_MENU_ITEM_ACTIVE = (209 / 255, 209 / 255, 209 / 255)
 
 LAUNCHER_SEARCH_H = 30 if LAUNCHER_SEARCHBAR else 0
-LAUNCHER_SEARCH_GAP = 6 if LAUNCHER_SEARCHBAR else 0
-LAUNCHER_SEARCH_EDGE = 5
-LAUNCHER_COLOR_SEARCH = (18 / 255, 18 / 255, 18 / 255)
 
 KC_CAL_COLLAPSED_H = 15
 KC_CAL_H = 236
-KC_COLOR_CAL = (9 / 255, 9 / 255, 9 / 255)
-KC_COLOR_CAL_ACTIVE = (18 / 255, 18 / 255, 18 / 255)
-KC_COLOR_SEPARATOR = (18 / 255, 18 / 255, 18 / 255)
 CALENDAR_WEEK_START = 0
 
 PLAYER_TIMELINE_H = 6
-PLAYER_TIMELINE_COLOR_TRACK = (0.14, 0.14, 0.14)
 
-PLAYER_GAP = 5
-PLAYER_TIMELINE_BOTTOM = 5
 
 CONTROL_STEP = 5
 BRIGHTNESS_EXPONENT = 4
 OSD_SECONDS = 1.6
 LAUNCHER_HEART = 16
+
+
+def __getattr__(name):
+    # Colours and radii live in style.css (modules/common/theme.py); these names are read at draw time.
+    from modules.common import theme
+    if name == "COLOR":
+        return theme.bg("#leech-surface")
+    if name == "RADIUS":
+        return theme.radius("#leech-surface")
+    if name == "FRAME_RADIUS":
+        return theme.radius("#leech-frame") if FRAME_ENABLED else 0
+    # Spacings that leech.conf does not set (see the "Отрисовка" section of style.css).
+    if name in _SPACINGS:
+        selector, kind = _SPACINGS[name]
+        return (theme.pad if kind == "padding" else theme.gap)(selector)
+    if name == "KC_CARD_H":
+        return KC_CARD_ICON + 2 * theme.pad("#cc-push-card")
+    if name == "LAUNCHER_SEARCH_GAP":
+        return theme.gap("#launcher-search") if LAUNCHER_SEARCHBAR else 0
+    raise AttributeError(name)
+
+
+_SPACINGS = {
+    "NOTCH_SPACING": ("#notch-menu", "margin"),
+    "BUTTONS_EDGE": ("#notch-menu", "padding"),
+    "PLAYER_SPACING": ("#notch-player", "padding"),
+    "PLAYER_GAP": ("#notch-player", "margin"),
+    "PLAYER_TIMELINE_BOTTOM": ("#notch-timeline", "margin"),
+    "DOCK_SEP_GAP": ("#leech-separate", "margin"),
+    "CC_SEP_GAP": ("#leech-separate", "margin"),
+    "KC_PAD": ("#cc-body", "padding"),
+    "KC_PUSH_PAD": ("#cc-push", "padding"),
+    "KC_CARD_PAD": ("#cc-push-card", "padding"),
+    "PICKER_PAD": ("#picker", "padding"),
+    "PICKER_SPACING": ("#picker", "margin"),
+    "PICKER_BORDER": ("#picker-cell", "padding"),
+    "LAUNCHER_MENU_PAD": ("#launcher-menu-item", "padding"),
+    "LAUNCHER_SEARCH_EDGE": ("#launcher-search", "padding"),
+}

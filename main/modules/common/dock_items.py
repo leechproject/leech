@@ -1,12 +1,14 @@
 import math
 from collections import Counter, namedtuple
 
+from modules.common import theme
+
 DockItem = namedtuple("DockItem", "app_id info pinned dots")
 
 SEPARATOR_W = 1
 DOT = 3
-DOT_GAP = 2
-DOT_OFFSET = 5
+DOT_GAP = theme.gap("#dock-dot")
+DOT_OFFSET = theme.pad("#dock-dot")
 
 
 def class_keys(desktop_id, wm_class, executable):

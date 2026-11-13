@@ -16,6 +16,7 @@ from gi.repository import GtkLayerShell, Gtk, Gdk, GLib, GdkPixbuf, Pango, Pango
 
 
 from modules import config
+from modules.common import theme
 from modules.parsing import bluetooth
 from modules.parsing import caffeine
 from modules.cc import calendar_grid
@@ -28,7 +29,7 @@ from modules.animations.anim import Tween
 from modules.cc.capture import Recorder, ScreenshotOverlay, take_screenshot
 from modules.cc.floodguard import FloodGuard
 from modules.animations.reveal import install_clip
-from modules.common.shapes import (OUTLINE_LAYERS, clip_out_band, corner_edge_path, corner_path, rounded_rect,
+from modules.common.shapes import (clip_out_band, corner_edge_path, corner_path, rounded_rect,
                                    stroke_inside)
 from modules.cc import layout
 from modules.cc.record_panel import RecordPanel
@@ -99,7 +100,6 @@ _ARROWS = {Gdk.KEY_Left: "left", Gdk.KEY_Right: "right", Gdk.KEY_Up: "up", Gdk.K
 # The calendar and notifications lie on the side of the button block away from the CC's anchor edge.
 TOWARD_UPPER = "down" if TOP else "up"
 TOWARD_BLOCK = "up" if TOP else "down"
-FOCUS_LIGHTEN = 0.07
 # Shift+Enter held this long toggles the Wi-Fi/Bluetooth menu; a shorter press is a tap.
 HOLD_MS = 450
 
@@ -351,11 +351,9 @@ class CalendarPlate(Gtk.DrawingArea):
     def _on_draw(self, widget, cr):
         w = widget.get_allocated_width()
         h = widget.get_allocated_height()
-        color = config.KC_COLOR_CAL_ACTIVE if self._expanded else config.KC_COLOR_CAL
-        if self._focused:
-            color = tuple(min(1.0, c + FOCUS_LIGHTEN) for c in color)
-        cr.set_source_rgb(*color)
-        rounded_rect(cr, 0, 0, w, h, 10)
+        plate = "#cc-calendar-plate" + (".expanded" if self._expanded else "") + (".focus" if self._focused else "")
+        cr.set_source_rgba(*theme.bg(plate))
+        rounded_rect(cr, 0, 0, w, h, theme.radius(plate))
         cr.fill()
         if h <= config.KC_CAL_COLLAPSED_H + 2:
             return False
@@ -370,23 +368,24 @@ class CalendarPlate(Gtk.DrawingArea):
     def _draw_header(self, cr, w):
         month = self._text(calendar_grid.MONTHS[self._month - 1])
         year = self._text(str(self._year))
-        cy = 8 + 16
-        cr.set_source_rgb(1, 1, 1)
+        top, side = theme.padding("#cc-calendar-plate")[:2]
+        cy = top + 16
+        cr.set_source_rgba(*theme.fg("#cc-calendar-plate"))
         _draw_crossed(cr, month, year, (w - _crossed_width(month, year)) / 2, cy)
-        for center, direction in ((22, -1), (w - 22, 1)):
+        for center, direction in ((side + 15, -1), (w - side - 15, 1)):
             cr.move_to(center - 3 * direction, cy - 6)
             cr.line_to(center + 3 * direction, cy)
             cr.line_to(center - 3 * direction, cy + 6)
             cr.stroke()
 
     def _draw_days(self, cr, w):
-        side = 7
+        top, side = theme.padding("#cc-calendar-plate")[:2]
         col_w = (w - 2 * side) / 7
-        top = 8 + 32
+        top += 32
         for col, name in enumerate(calendar_grid.weekday_labels(config.CALENDAR_WEEK_START)):
-            label = self._text(name, 11)
+            label = self._text(name, theme.font("#cc-calendar-weekday"))
             lw, lh = label.get_pixel_size()
-            cr.set_source_rgb(0.54, 0.54, 0.54)
+            cr.set_source_rgba(*theme.fg("#cc-calendar-weekday"))
             cr.move_to(side + col * col_w + (col_w - lw) / 2, top + (20 - lh) / 2)
             PangoCairo.show_layout(cr, label)
         today = datetime.date.today()
@@ -396,13 +395,13 @@ class CalendarPlate(Gtk.DrawingArea):
             x, y = side + col * col_w, grid_top + row * 28
             is_today = day == today
             if is_today:
-                cr.set_source_rgb(1, 1, 1)
-                rounded_rect(cr, x + 4, y + 2, col_w - 8, 24, 8)
+                cr.set_source_rgba(*theme.bg("#cc-calendar-day.today"))
+                rounded_rect(cr, x + 4, y + 2, col_w - 8, 24, theme.radius("#cc-calendar-day.today"))
                 cr.fill()
             label = self._text(str(day.day))
             lw, lh = label.get_pixel_size()
-            shade = 0.0 if is_today else (1.0 if in_month else 0.27)
-            cr.set_source_rgb(shade, shade, shade)
+            kind = "#cc-calendar-day" + (".today" if is_today else ("" if in_month else ".other"))
+            cr.set_source_rgba(*theme.fg(kind))
             cr.move_to(x + (col_w - lw) / 2, y + (28 - lh) / 2)
             PangoCairo.show_layout(cr, label)
 
@@ -516,7 +515,7 @@ class ControlCenter(ShapedWindow):
         self._dnd_btn.set_on(self._dnd)
         self._caffeine_btn.set_on(caffeine.is_on())
         if self._recorder.active():
-            self._rec_btn.set_on(True)
+            self._sync_record_button()
             self._watch_record()
 
         wm.subscribe(self._on_wm_state)
@@ -534,7 +533,8 @@ class ControlCenter(ShapedWindow):
         self._shot_btn = _Button(ICON_SHOT, None, 0, 0, self._start_screenshot)
         self._rec_btn = _Button(ICON_RECORD, "00:00", 0, 0, self._toggle_panel)
         self._panel_open = False
-        self._rec_panel = RecordPanel(INNER_W, self._recorder, self._toggle_recording, self._follow_panel)
+        self._rec_panel = RecordPanel(INNER_W, self._recorder, self._toggle_recording, self._follow_panel,
+                                      self._on_rec_hover)
         self._rec_panel.audio, self._rec_panel.microphone = self._recorder.audio, self._recorder.microphone
         self._panel_box = Gtk.Box()
         (self._panel_box.set_margin_bottom if TOP else self._panel_box.set_margin_top)(PAD)
@@ -556,6 +556,7 @@ class ControlCenter(ShapedWindow):
 
         block = Gtk.Fixed()
         block.set_size_request(INNER_W, CONTROLS_H)
+        self._block = block
         self._nav_buttons = []
         for place in PLACES:
             widget = self._custom_button(place.key) if isinstance(place.key, Custom) else widgets[place.key]
@@ -916,11 +917,18 @@ class ControlCenter(ShapedWindow):
     def _toggle_panel(self):
         if self._panel_open:
             self._panel_open = False
+            if self._focus is not None and self._focus[0] == "rec":
+                self._set_focus(self._record_button_focus())
             self._relayout(self._sync_panel)
         else:
             self._panel_open = True
             self._panel_box.show()
             self._relayout()
+        self._sync_record_button()
+
+    def _sync_record_button(self):
+        # The toggle stays on while its panel is shown, and while a recording runs.
+        self._rec_btn.set_on(self._panel_open or self._recorder.active())
 
     def debug_press(self, name):
         if name == "panel":
@@ -1009,7 +1017,7 @@ class ControlCenter(ShapedWindow):
             return True
         if self._net.is_open:
             return self._net.key_press(event)
-        key = event.keyval
+        key = binds.nav_key(event)
         if key == Gdk.KEY_Escape:
             self._set_level(0)
             return True
@@ -1021,11 +1029,35 @@ class ControlCenter(ShapedWindow):
             return True
         return False
 
-    # Keyboard focus: ("btn", index) in the button block; on stage 2 also ("cal",) and ("card", nid).
+    # Keyboard focus: ("btn", index) in the button block, ("rec", name) in the open record panel;
+    # on stage 2 also ("cal",) and ("card", nid).
     def _button_focus(self):
         if not self._nav_buttons:
             return None
         return ("btn", self._last_btn if self._last_btn is not None else 0)
+
+    def _record_button_focus(self):
+        for index, (_place, widget) in enumerate(self._nav_buttons):
+            if widget is self._rec_btn.widget:
+                return ("btn", index)
+        return self._button_focus()
+
+    def _nav_targets(self):
+        """Focus targets of the button block and the record panel with their rects in block coordinates."""
+        targets = [("btn", index) for index in range(len(self._nav_buttons))]
+        rects = list(self._nav_rects)
+        if self._panel_open and self._rec_panel.get_mapped():
+            origin = self._rec_panel.translate_coordinates(self._block, 0, 0)
+            if origin is not None:
+                ox, oy = origin
+                for name, (x, y, w, h) in self._rec_panel.rects().items():
+                    targets.append(("rec", name))
+                    rects.append((ox + x, oy + y, w, h))
+        return targets, rects
+
+    def _on_rec_hover(self):
+        if self._focus is not None and self._focus[0] in ("btn", "rec"):
+            self._set_focus(None)
 
     def _focus_widget(self, focus):
         if focus is None:
@@ -1045,9 +1077,13 @@ class ControlCenter(ShapedWindow):
             old.get_style_context().remove_class("kfocus")
         if self._focus == ("cal",):
             self._calendar.set_focused(False)
+        elif self._focus is not None and self._focus[0] == "rec":
+            self._rec_panel.set_focus(None)
         self._focus = focus
         if focus is None:
             return
+        if focus[0] == "rec":
+            self._rec_panel.set_focus(focus[1])
         if focus[0] == "btn":
             self._last_btn = focus[1]
         widget = self._focus_widget(focus)
@@ -1079,10 +1115,15 @@ class ControlCenter(ShapedWindow):
             self._set_focus(self._button_focus())
             return
         kind = focus[0]
-        if kind == "btn":
-            index = keynav.step(self._nav_rects, focus[1], direction)
+        if kind in ("btn", "rec"):
+            targets, rects = self._nav_targets()
+            if focus not in targets:
+                # The focused panel element went away (recording stopped, panel closed).
+                self._set_focus(("rec", "record") if self._panel_open else self._record_button_focus())
+                return
+            index = keynav.step(rects, targets.index(focus), direction)
             if index is not None:
-                self._set_focus(("btn", index))
+                self._set_focus(targets[index])
             elif direction == TOWARD_UPPER and self._upper_open():
                 if config.CC_CALENDAR:
                     self._set_focus(("cal",))
@@ -1093,7 +1134,7 @@ class ControlCenter(ShapedWindow):
             if direction == TOWARD_UPPER and self._order:
                 self._set_focus(("card", self._order[0]))
             elif direction == TOWARD_BLOCK:
-                self._set_focus(self._button_focus())
+                self._set_focus(("rec", "record") if self._panel_open else self._button_focus())
             elif direction in ("left", "right") and self._calendar.expanded:
                 self._calendar.shift(-1 if direction == "left" else 1)
             return
@@ -1103,8 +1144,10 @@ class ControlCenter(ShapedWindow):
         elif direction == TOWARD_BLOCK:
             if index > 0:
                 self._set_focus(("card", self._order[index - 1]))
+            elif config.CC_CALENDAR:
+                self._set_focus(("cal",))
             else:
-                self._set_focus(("cal",) if config.CC_CALENDAR else self._button_focus())
+                self._set_focus(("rec", "record") if self._panel_open else self._button_focus())
 
     def _focus_activate(self):
         focus = self._focus
@@ -1112,6 +1155,10 @@ class ControlCenter(ShapedWindow):
             self._set_focus(self._button_focus())
         elif focus[0] == "btn":
             self._nav_buttons[focus[1]][1].clicked()
+        elif focus[0] == "rec":
+            self._rec_panel.press(focus[1])
+            if focus[1] not in self._rec_panel.rects():
+                self._set_focus(("rec", "record"))
         elif focus[0] == "cal":
             self._calendar.toggle()
         else:
@@ -1152,7 +1199,7 @@ class ControlCenter(ShapedWindow):
             self._net.open(kind)
 
     def _on_button_enter(self, _widget, _event):
-        if self._focus is not None and self._focus[0] == "btn":
+        if self._focus is not None and self._focus[0] in ("btn", "rec"):
             self._set_focus(None)
         return False
 
@@ -1160,7 +1207,7 @@ class ControlCenter(ShapedWindow):
         if self._recorder.active():
             self._recorder.stop()
         elif self._recorder.start(self._rec_panel.audio, self._rec_panel.microphone):
-            self._rec_btn.set_on(True)
+            self._sync_record_button()
             self._watch_record()
 
     def _update_record_label(self):
@@ -1180,7 +1227,7 @@ class ControlCenter(ShapedWindow):
             delay = 1000 - int(self._recorder.elapsed() * 1000) % 1000
             GLib.timeout_add(max(50, delay + 5), self._watch_record)
             return False
-        self._rec_btn.set_on(False)
+        self._sync_record_button()
         self._update_record_label()
         self._server.notify_local("Recording saved", str(self._recorder.path), "video-x-generic")
         return False
@@ -1224,7 +1271,7 @@ class ControlCenter(ShapedWindow):
         self._bt.set_available(powered is not None)
         self._bt.set_on(bool(powered))
 
-        self._rec_btn.set_on(self._recorder.active())
+        self._sync_record_button()
         self._update_record_label()
         self._controls.refresh()
 
@@ -1496,7 +1543,7 @@ class ControlCenter(ShapedWindow):
         else:
             self._canvas.release("cc")
         self._sync_keyboard()
-        if self._level != 2 and self._focus is not None and self._focus[0] != "btn":
+        if self._level != 2 and self._focus is not None and self._focus[0] not in ("btn", "rec"):
             self._set_focus(self._button_focus())
         if self._level == 0:
             self._peeking = self._peeking and (self._hover_trigger or self._hover_cc) and not self._peek_blocked
@@ -1684,7 +1731,7 @@ class ControlCenter(ShapedWindow):
                 plate(cr)
                 cr.fill()
                 if config.CC_OUTLINE:
-                    stroke_inside(cr, plate, plate, OUTLINE_LAYERS, config.OUTLINE_THICKNESS)
+                    stroke_inside(cr, plate, plate, theme.outline_layers(), config.OUTLINE_THICKNESS)
                     cr.set_source_rgba(*config.COLOR)
                 cr.restore()
             else:
@@ -1712,7 +1759,7 @@ class ControlCenter(ShapedWindow):
             stroke_inside(
                 cr, lambda c: corner_path(c, width, height, self._w, self._h, near, edge, config.RADIUS, top=far),
                 lambda c: corner_edge_path(c, width, height, self._w, self._h, near, edge, config.RADIUS, top=far),
-                OUTLINE_LAYERS, config.OUTLINE_THICKNESS)
+                theme.outline_layers(), config.OUTLINE_THICKNESS)
             cr.set_source_rgba(*config.COLOR)
         cr.restore()
 
@@ -1723,7 +1770,7 @@ class ControlCenter(ShapedWindow):
         cx = x + w / 2 + dx
         cy = y + h / 2
         half = config.KC_FLOOD_ICON / 2 - 3
-        cr.set_source_rgba(1, 1, 1, 1)
+        cr.set_source_rgba(*theme.fg("#cc-flood"))
         cr.set_line_width(3)
         cr.set_line_cap(cairo.LINE_CAP_ROUND)
         cr.move_to(cx - half, cy - half)

@@ -6,6 +6,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, GLib, Gio
 
 from modules import config
+from modules.common import theme
 from modules.parsing import apps
 from modules.common import icons
 from modules.common import dock_items
@@ -156,7 +157,7 @@ class DockRow:
 
     def _draw_marks(self, widget, cr):
         self._draw_separator(widget, cr)
-        cr.set_source_rgba(1, 1, 1, 1)
+        cr.set_source_rgba(*theme.bg("#dock-dot"))
         radius = dock_items.DOT / 2
         for button, app_id in self._buttons:
             count = self._counts.get(app_id, 0)

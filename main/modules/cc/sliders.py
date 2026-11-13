@@ -6,11 +6,10 @@ from gi.repository import Gtk, Gdk
 
 from modules import config
 from modules.common import drawing
+from modules.common import theme
 from modules.common.shapes import rounded_rect
 
-_PLATE = (9 / 255, 9 / 255, 9 / 255)
-_DIM = (0.4, 0.4, 0.4)
-_ICON_SIZE = 22
+_ICON_SIZE = theme.font("#cc-slider-glyph")
 
 
 class Slider(Gtk.DrawingArea):
@@ -83,21 +82,22 @@ class Slider(Gtk.DrawingArea):
 
     def _on_draw(self, widget, cr):
         w, h = widget.get_allocated_width(), widget.get_allocated_height()
-        cr.set_source_rgb(*_PLATE)
-        rounded_rect(cr, 0, 0, w, h, 10)
+        radius = theme.radius("#cc-slider")
+        cr.set_source_rgba(*theme.bg("#cc-slider"))
+        rounded_rect(cr, 0, 0, w, h, radius)
         cr.fill()
         if self._horizontal:
             fill_w = w * self._value / 100
             filled, empty = (0, 0, fill_w, h), (fill_w, 0, w - fill_w, h)
-            cx, cy = 8 + _ICON_SIZE / 2, h / 2
+            cx, cy = theme.pad("#cc-slider") + _ICON_SIZE / 2, h / 2
         else:
             fill_h = h * self._value / 100
             filled, empty = (0, h - fill_h, w, fill_h), (0, 0, w, h - fill_h)
-            cx, cy = w / 2, h - 8 - _ICON_SIZE / 2
+            cx, cy = w / 2, h - theme.pad("#cc-slider") - _ICON_SIZE / 2
         cr.save()
-        rounded_rect(cr, 0, 0, w, h, 10)
+        rounded_rect(cr, 0, 0, w, h, radius)
         cr.clip()
-        cr.set_source_rgb(*(_DIM if self._muted else (1, 1, 1)))
+        cr.set_source_rgba(*theme.fg("#cc-slider.muted" if self._muted else "#cc-slider"))
         cr.rectangle(*filled)
         cr.fill()
         cr.restore()
@@ -106,8 +106,7 @@ class Slider(Gtk.DrawingArea):
             cr.save()
             cr.rectangle(*(filled if inside else empty))
             cr.clip()
-            shade = 0.0 if inside else 1.0
-            cr.set_source_rgb(shade, shade, shade)
+            cr.set_source_rgba(*theme.fg("#cc-slider-glyph.filled" if inside else "#cc-slider-glyph"))
             self._icon(cr, cx, cy)
             cr.restore()
         return False

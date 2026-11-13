@@ -17,14 +17,16 @@ from modules.common.surface import ShapedWindow, no_input, init_layer
 from modules.common.glyph import GlyphLabel
 
 from modules import config
+from modules.common import theme
 from modules.parsing import battery
+from modules.common import binds
 from modules.common import debug
 from modules.common import layerkeys
 from modules.parsing import power
 from modules.common import timefmt
 from modules.animations import anim
 from modules.animations.anim import Tween
-from modules.common.shapes import (OUTLINE_LAYERS, notch_edge_path, notch_path, rounded_rect, snap_centered,
+from modules.common.shapes import (notch_edge_path, notch_path, rounded_rect, snap_centered,
                                    stroke_inside)
 from modules.common.edge import AttachedEdge
 from modules.config.geometry import scaled
@@ -124,13 +126,13 @@ class CoverArt(Gtk.DrawingArea):
         self.queue_draw()
 
     def _on_draw(self, _widget, cr):
-        rounded_rect(cr, 0, 0, self._size, self._size, self._radius)
+        rounded_rect(cr, 0, 0, self._size, self._size, theme.radius("#notch-cover"))
         if self._pixbuf:
             cr.clip()
             Gdk.cairo_set_source_pixbuf(cr, self._pixbuf, 0, 0)
             cr.paint()
         else:
-            cr.set_source_rgba(0.035, 0.035, 0.035, 1)
+            cr.set_source_rgba(*theme.bg("#notch-cover"))
             cr.fill()
         return False
 
@@ -180,15 +182,89 @@ class TimelineBar(Gtk.DrawingArea):
 
     def _on_draw(self, widget, cr):
         w, h = widget.get_allocated_width(), widget.get_allocated_height()
-        cr.set_source_rgb(*config.PLAYER_TIMELINE_COLOR_TRACK)
+        cr.set_source_rgba(*theme.bg("#notch-timeline"))
         rounded_rect(cr, 0, 0, w, h, h / 2)
         cr.fill()
         filled = w * self._fraction
         if filled >= 1:
-            cr.set_source_rgb(1, 1, 1)
+            cr.set_source_rgba(*theme.fg("#notch-timeline"))
             rounded_rect(cr, 0, 0, max(filled, h), h, h / 2)
             cr.fill()
         return False
+
+
+def _expanded_page(orientation, spacing):
+    page = Gtk.Box(orientation=orientation, spacing=spacing)
+    page.set_border_width(config.BUTTONS_EDGE)
+    page.set_size_request(*EXPANDED)
+    return page
+
+
+class BatteryPage:
+    """The battery and power profiles menu: charge, source and the profile buttons.
+
+    Shown in the notch, or above the Undercover taskbar (notch.expand.power-profiles.undercover).
+    """
+
+    def __init__(self):
+        page = _expanded_page(Gtk.Orientation.VERTICAL, SP)
+        header = Gtk.Box()
+        self._percent = _label("", "notch-percent")
+        self._icon = GlyphLabel(label="", name="notch-bat-icon")
+        self._source = _label("", "notch-source")
+        header.pack_start(self._percent, False, False, 4)
+        header.pack_end(self._icon, False, False, 4)
+        header.pack_end(self._source, False, False, 8)
+        for widget, shown in ((self._percent, config.NOTCH_SHOW_PERCENTAGE),
+                              (self._icon, config.NOTCH_SHOW_STATUS_ICON),
+                              (self._source, config.NOTCH_SHOW_TEXT_STATUS)):
+            if not shown:
+                _keep_hidden(widget)
+        page.pack_start(header, False, False, 0)
+
+        icons = {"power-saver": config.ICON_ECO, "balanced": config.ICON_BALANCE, "performance": config.ICON_PERF}
+        self.buttons = {}
+        self.active = None
+        if config.NOTCH_PROFILES:
+            row = Gtk.Box(spacing=SP)
+            row.set_homogeneous(True)
+            for profile in config.NOTCH_PROFILES:
+                btn = _action_button(icons[profile], None, lambda p=profile: self.set_profile(p))
+                btn.get_style_context().add_class("profile")
+                self.buttons[profile] = btn
+                row.pack_start(btn, True, True, 0)
+            page.pack_start(row, True, True, 0)
+        self.widget = page
+
+    def refresh(self):
+        self.refresh_info()
+        power.get_profile(self.mark)
+
+    def refresh_info(self):
+        data = battery.read()
+        if data:
+            self._percent.set_label(f"{data[0]}%")
+            self._icon.set_label(battery.icon(*data, bool(battery.on_ac())))
+        else:
+            self._percent.set_label("—")
+            self._icon.set_label("")
+        ac = battery.on_ac()
+        self._source.set_label("" if ac is None else ("On socket" if ac else "On battery"))
+
+    def mark(self, active):
+        self.active = active
+        for profile, btn in self.buttons.items():
+            ctx = btn.get_style_context()
+            (ctx.add_class if profile == active else ctx.remove_class)("active")
+
+    def set_profile(self, profile):
+        power.set_profile(profile)
+        self.mark(profile)
+
+    def start_index(self):
+        """Where arrow keys start: the active profile, else the middle one."""
+        names = list(self.buttons)
+        return names.index(self.active) if self.active in names else min(1, len(names) - 1)
 
 
 class Notch(ShapedWindow):
@@ -215,7 +291,8 @@ class Notch(ShapedWindow):
         self._expanded = None
         self._has_windows = False
         self._battery_tick_source = 0
-        self._active_profile = None
+        # Set by Desk when the power profiles menu lives above the Undercover taskbar.
+        self.battery_redirect = None
         self._fallback_cover = self._load_fallback_cover()
         self._idle_text = idle_text(config.IDLE_TEXT)
         self._idle_alpha = 0.0
@@ -292,39 +369,12 @@ class Notch(ShapedWindow):
         return (w, h)
 
     def _expanded_page(self, orientation, spacing):
-        page = Gtk.Box(orientation=orientation, spacing=spacing)
-        page.set_border_width(config.BUTTONS_EDGE)
-        page.set_size_request(*EXPANDED)
-        return page
+        return _expanded_page(orientation, spacing)
 
     def _build_battery(self):
-        page = self._expanded_page(Gtk.Orientation.VERTICAL, SP)
-
-        header = Gtk.Box()
-        self._bat_percent = _label("", "notch-percent")
-        self._bat_icon = GlyphLabel(label="", name="notch-bat-icon")
-        self._bat_source = _label("", "notch-source")
-        header.pack_start(self._bat_percent, False, False, 4)
-        header.pack_end(self._bat_icon, False, False, 4)
-        header.pack_end(self._bat_source, False, False, 8)
-        for widget, shown in ((self._bat_percent, config.NOTCH_SHOW_PERCENTAGE),
-                              (self._bat_icon, config.NOTCH_SHOW_STATUS_ICON),
-                              (self._bat_source, config.NOTCH_SHOW_TEXT_STATUS)):
-            if not shown:
-                _keep_hidden(widget)
-        page.pack_start(header, False, False, 0)
-
-        icons = {"power-saver": config.ICON_ECO, "balanced": config.ICON_BALANCE, "performance": config.ICON_PERF}
-        self._profile_buttons = {}
-        if config.NOTCH_PROFILES:
-            row = Gtk.Box(spacing=SP)
-            row.set_homogeneous(True)
-            for profile in config.NOTCH_PROFILES:
-                btn = _action_button(icons[profile], None, lambda p=profile: self._set_profile(p))
-                self._profile_buttons[profile] = btn
-                row.pack_start(btn, True, True, 0)
-            page.pack_start(row, True, True, 0)
-        return page
+        self._battery = BatteryPage()
+        self._profile_buttons = self._battery.buttons
+        return self._battery.widget
 
     def _build_power(self):
         page = self._expanded_page(Gtk.Orientation.HORIZONTAL, SP)
@@ -353,7 +403,7 @@ class Notch(ShapedWindow):
         page = Gtk.Fixed()
         page.set_size_request(*EXPANDED)
 
-        self._cover = CoverArt(cover, config.COVER_RADIUS)
+        self._cover = CoverArt(cover, None)
         page.put(self._cover, pad, pad)
 
         self._title = _label("", "notch-title")
@@ -401,6 +451,9 @@ class Notch(ShapedWindow):
 
 
     def toggle(self, name):
+        if name == "battery" and self.battery_redirect is not None:
+            self.battery_redirect()
+            return None
         if name not in self._menus:
             return f"меню {name} отключено в конфиге"
         self._expanded = None if self._expanded == name else name
@@ -462,7 +515,7 @@ class Notch(ShapedWindow):
     def _on_key(self, _widget, event):
         if self._expanded is None:
             return False
-        key = event.keyval
+        key = binds.nav_key(event)
         if key == Gdk.KEY_Escape:
             self.close()
             return True
@@ -485,8 +538,7 @@ class Notch(ShapedWindow):
 
     def _start_index(self, mode):
         if mode == "battery":
-            names = list(self._profile_buttons)
-            return names.index(self._active_profile) if self._active_profile in names else min(1, len(names) - 1)
+            return self._battery.start_index()
         return 0
 
     def _set_keyboard(self, level):
@@ -602,19 +654,10 @@ class Notch(ShapedWindow):
 
 
     def _refresh_battery(self):
-        self._refresh_battery_info()
-        power.get_profile(self._mark_profile)
+        self._battery.refresh()
 
     def _refresh_battery_info(self):
-        data = battery.read()
-        if data:
-            self._bat_percent.set_label(f"{data[0]}%")
-            self._bat_icon.set_label(battery.icon(*data, bool(battery.on_ac())))
-        else:
-            self._bat_percent.set_label("—")
-            self._bat_icon.set_label("")
-        ac = battery.on_ac()
-        self._bat_source.set_label("" if ac is None else ("On socket" if ac else "On battery"))
+        self._battery.refresh_info()
 
     def _battery_tick(self):
         if self._expanded != "battery":
@@ -622,17 +665,6 @@ class Notch(ShapedWindow):
             return False
         self._refresh_battery_info()
         return True
-
-    def _mark_profile(self, active):
-        self._active_profile = active
-        for profile, btn in self._profile_buttons.items():
-            ctx = btn.get_style_context()
-            (ctx.add_class if profile == active else ctx.remove_class)("active")
-
-    def _set_profile(self, profile):
-        power.set_profile(profile)
-        self._mark_profile(profile)
-
 
     def _on_media(self, track, pixbuf):
         self._track = track
@@ -749,7 +781,7 @@ class Notch(ShapedWindow):
         if ISLAND:
             radius = self._island_radius()
             path = lambda c: rounded_rect(c, x0, BODY_TOP, self._w, self._h, radius)
-            stroke_inside(cr, path, path, OUTLINE_LAYERS, config.OUTLINE_THICKNESS)
+            stroke_inside(cr, path, path, theme.outline_layers(), config.OUTLINE_THICKNESS)
             return
         # Вырез в рамке и челка в баре: обводка только по свободному краю, там, где челка
         # сливается с рамкой или баром, её нет.
@@ -764,7 +796,7 @@ class Notch(ShapedWindow):
                 c.rectangle(0, FRAME, area.get_allocated_width(), area.get_allocated_height())
 
         stroke_inside(cr, shape, lambda c: notch_edge_path(c, x0, x1, FRAME, below, config.RADIUS),
-                      OUTLINE_LAYERS, config.OUTLINE_THICKNESS)
+                      theme.outline_layers(), config.OUTLINE_THICKNESS)
 
     def _fill_inscribed(self, cr, area, x0):
         cr.rectangle(x0, config.BAR_OFFSET, self._w, FRAME - config.BAR_OFFSET)
@@ -785,12 +817,15 @@ class Notch(ShapedWindow):
         w, h = self._w - 2 * gap, height - 2 * gap
         if w < 2 or h < 2:
             return
-        cr.set_source_rgba(*config.IDLE_PLATE_COLOR, self._idle_alpha)
-        rounded_rect(cr, x0 + gap, top + gap, w, h, h / 2 if PILL_PLATE else min(config.IDLE_PLATE_RADIUS, w / 2, h / 2))
+        r, g, b, a = theme.bg("#notch-idle-plate")
+        cr.set_source_rgba(r, g, b, a * self._idle_alpha)
+        plate_radius = theme.radius("#notch-idle-plate")
+        rounded_rect(cr, x0 + gap, top + gap, w, h, h / 2 if PILL_PLATE else min(plate_radius, w / 2, h / 2))
         cr.fill()
         layout = self._area.create_pango_layout(self._idle_text)
         text_w, text_h = layout.get_pixel_size()
-        cr.set_source_rgba(1, 1, 1, self._idle_alpha)
+        r, g, b, a = theme.fg("#notch-idle-plate")
+        cr.set_source_rgba(r, g, b, a * self._idle_alpha)
         cr.move_to(x0 + (self._w - text_w) / 2, top + (height - text_h) / 2)
         PangoCairo.show_layout(cr, layout)
 

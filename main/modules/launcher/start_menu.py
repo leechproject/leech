@@ -10,21 +10,14 @@ gi.require_version("PangoCairo", "1.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, PangoCairo
 
 from modules import config
-from modules.common import glyph
+from modules.common import glyph, theme
 from modules.common.shapes import rounded_rect
 from modules.launcher import start_layout as sl
 from modules.parsing import power
 
-PLATE = (9 / 255, 9 / 255, 9 / 255)
-HOVER = (17 / 255, 17 / 255, 17 / 255)
-WHITE = (1.0, 1.0, 1.0)
-BLACK = (0.0, 0.0, 0.0)
 ICON_SETTINGS = ""
 ICON_POWER = ""
 ICON_USER = ""
-GLYPH_SIZE = 15
-MENU_GLYPH = 14
-BUTTON_RADIUS = 8
 USERNAME = getpass.getuser()
 
 
@@ -72,6 +65,30 @@ class StartFooter:
     def close_menu(self):
         self.menu_open = False
 
+    def focus(self, target):
+        """Keyboard focus: ("settings",), ("power",), ("power-menu", index) or None; drawn like the hover."""
+        self._hover = target
+
+    def key(self, key):
+        """A key (arrows already resolved from vim keys) while the footer or its power menu has the focus."""
+        if self.menu_open:
+            count = len(sl.MENU_ITEMS)
+            index = self._hover[1] if self._hover is not None and self._hover[0] == "power-menu" else None
+            if key in (Gdk.KEY_Up, Gdk.KEY_Down):
+                step = 1 if key == Gdk.KEY_Down else -1
+                index = 0 if index is None else max(0, min(count - 1, index + step))
+                self._hover = ("power-menu", index)
+            elif key in (Gdk.KEY_Return, Gdk.KEY_KP_Enter, Gdk.KEY_space) and index is not None:
+                self.press(("power-menu", index))
+            return True
+        if key in (Gdk.KEY_Left, Gdk.KEY_Right):
+            self._hover = ("settings",) if key == Gdk.KEY_Left else ("power",)
+        elif key in (Gdk.KEY_Return, Gdk.KEY_KP_Enter, Gdk.KEY_space):
+            if self._hover == ("power",):
+                self.menu_open = True
+                self._hover = ("power-menu", 0)
+        return True
+
     def press(self, found):
         kind = found[0] if found is not None else None
         if kind == "power":
@@ -93,8 +110,8 @@ class StartFooter:
 
     def draw(self, cr, x0, x1, body_bottom):
         plate = sl.footer(x0, x1, body_bottom)
-        cr.set_source_rgb(*PLATE)
-        rounded_rect(cr, *plate, config.RADIUS)
+        cr.set_source_rgba(*theme.bg("#start-footer"))
+        rounded_rect(cr, *plate, theme.radius("#start-footer"))
         cr.fill()
         self._draw_avatar(cr, sl.avatar(plate))
         self._draw_username(cr, sl.username(plate))
@@ -113,10 +130,10 @@ class StartFooter:
             Gdk.cairo_set_source_pixbuf(cr, self._avatar, x, y)
             cr.paint()
         else:
-            cr.set_source_rgb(*HOVER)
+            cr.set_source_rgba(*theme.bg("#start-avatar"))
             cr.paint()
-            cr.set_source_rgb(*WHITE)
-            glyph.show_centered(cr, self._window._text_layout(ICON_USER, None, GLYPH_SIZE), x + w / 2, y + h / 2)
+            cr.set_source_rgba(*theme.fg("#start-avatar"))
+            glyph.show_centered(cr, self._window._text_layout(ICON_USER, None, theme.font("#start-avatar")), x + w / 2, y + h / 2)
         cr.restore()
 
     def _draw_username(self, cr, rect):
@@ -125,34 +142,35 @@ class StartFooter:
             return
         text = self._window._text_layout(USERNAME, w)
         _tw, th = text.get_pixel_size()
-        cr.set_source_rgb(*WHITE)
+        cr.set_source_rgba(*theme.fg("#start-footer"))
         cr.move_to(x, y + (h - th) / 2)
         PangoCairo.show_layout(cr, text)
 
     def _draw_button(self, cr, rect, icon, active):
         x, y, w, h = rect
-        if active:
-            cr.set_source_rgb(*HOVER)
-            rounded_rect(cr, x, y, w, h, BUTTON_RADIUS)
-            cr.fill()
-        cr.set_source_rgb(*WHITE)
-        glyph.show_centered(cr, self._window._text_layout(icon, None, GLYPH_SIZE), x + w / 2, y + h / 2)
+        button = "#start-button.hover" if active else "#start-button"
+        cr.set_source_rgba(*theme.bg(button))
+        rounded_rect(cr, x, y, w, h, theme.radius(button))
+        cr.fill()
+        cr.set_source_rgba(*theme.fg(button))
+        glyph.show_centered(cr, self._window._text_layout(icon, None, theme.font("#start-button")), x + w / 2, y + h / 2)
 
     def _draw_menu(self, cr, box):
-        cr.set_source_rgba(*config.COLOR)
-        rounded_rect(cr, *box, config.RADIUS)
+        cr.set_source_rgba(*theme.bg("#start-menu"))
+        rounded_rect(cr, *box, theme.radius("#start-menu"))
         cr.fill()
         for index, (label, icon, _action) in enumerate(_menu_entries()):
             x, y, w, h = sl.menu_item(box, index)
             active = self._hover == ("power-menu", index)
-            cr.set_source_rgb(*(WHITE if active else PLATE))
-            rounded_rect(cr, x, y, w, h, BUTTON_RADIUS)
+            item = "#start-menu-item.active" if active else "#start-menu-item"
+            cr.set_source_rgba(*theme.bg(item))
+            rounded_rect(cr, x, y, w, h, theme.radius(item))
             cr.fill()
-            fg = BLACK if active else WHITE
-            cr.set_source_rgb(*fg)
-            icon_layout = self._window._text_layout(icon or "", None, MENU_GLYPH)
-            glyph.show_centered(cr, icon_layout, x + sl.MENU_PAD + MENU_GLYPH / 2, y + h / 2)
-            text_x = x + sl.MENU_PAD + MENU_GLYPH + sl.MENU_PAD
+            cr.set_source_rgba(*theme.fg(item))
+            menu_glyph = theme.font("#start-menu-item")
+            icon_layout = self._window._text_layout(icon or "", None, menu_glyph)
+            glyph.show_centered(cr, icon_layout, x + sl.MENU_PAD + menu_glyph / 2, y + h / 2)
+            text_x = x + sl.MENU_PAD + menu_glyph + sl.MENU_PAD
             text = self._window._text_layout(label, w - (text_x - x) - sl.MENU_PAD)
             _tw, th = text.get_pixel_size()
             cr.move_to(text_x, y + (h - th) / 2)

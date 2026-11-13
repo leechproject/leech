@@ -1,5 +1,6 @@
 from modules import config
-from modules.common.shapes import (OUTLINE_LAYERS, clip_out_band, notch_edge_path, notch_path, rounded_rect,
+from modules.common import theme
+from modules.common.shapes import (clip_out_band, notch_edge_path, notch_path, rounded_rect,
                                    stroke_inside)
 
 
@@ -42,13 +43,13 @@ class AttachedEdge:
         if detached:
             plate = lambda c: rounded_rect(c, x0, self.body_y(height, h, frame), x1 - x0, h,
                                            min(config.RADIUS, h / 2))
-            stroke_inside(cr, plate, plate, OUTLINE_LAYERS, config.OUTLINE_THICKNESS)
+            stroke_inside(cr, plate, plate, theme.outline_layers(), config.OUTLINE_THICKNESS)
         else:
             self.clip_bar(cr, width, height)
             self.to_edge(cr, height)
             stroke_inside(cr, lambda c: notch_path(c, x0, x1, self.frame, h, config.RADIUS),
                           lambda c: notch_edge_path(c, x0, x1, self.frame, h, config.RADIUS),
-                          OUTLINE_LAYERS, config.OUTLINE_THICKNESS)
+                          theme.outline_layers(), config.OUTLINE_THICKNESS)
         cr.restore()
 
     def clip_inside(self, cr, width, height, frame=None):

@@ -12,13 +12,14 @@ from modules import config
 from modules.bar import tray_compat
 from modules.bar.taskbar_layout import grid_cell, grid_size, window_left
 from modules.common.shapes import rounded_rect
+from modules.common import theme
 from modules.common.surface import init_layer
 
 ICON = 24
-SPACING = 6
+SPACING = theme.pad("#taskbar-tray-grid")
 COLUMNS = 4
-GAP = 7
-SCREEN_EDGE = 5
+GAP = theme.gap("#taskbar-tray-grid")
+SCREEN_EDGE = theme.gap("#taskbar-popup")
 
 
 class TrayWindow(Window):
